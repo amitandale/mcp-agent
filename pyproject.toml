@@ -44,3 +44,6 @@ anthropic = [
 anthropic_bedrock = [
     "anthropic[bedrock]>=0.52.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
