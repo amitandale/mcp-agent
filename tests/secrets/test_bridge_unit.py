@@ -9,9 +9,11 @@ class GHMock(httpx.AsyncBaseTransport):
         self.last_request = request
         assert request.url.path.endswith("/access_tokens")
         assert request.headers.get("Accept","").startswith("application/vnd.github+json")
+        # Return a fake token
         return httpx.Response(201, json={"token":"ghs_xxx", "expires_at":"2099-01-01T00:00:00Z"})
 @pytest.mark.asyncio
 async def test_issue_token_scopes_ttl_and_headers(monkeypatch):
+    # Avoid real RSA signing by stubbing the JWT builder
     monkeypatch.setenv("GITHUB_APP_ID","12345")
     monkeypatch.setenv("GITHUB_PRIVATE_KEY","PEM_PLACEHOLDER")
     monkeypatch.setenv("GITHUB_API","https://api.github.com")
@@ -26,10 +28,13 @@ async def test_issue_token_scopes_ttl_and_headers(monkeypatch):
         http=client,
     )
     assert data["token"].startswith("ghs_")
+    # headers carried the app JWT
     assert t.last_request.headers.get("Authorization") == "Bearer app.jwt"
+    # body included permissions and repositories
     body = json.loads(t.last_request.content)
     assert body["permissions"] == {"contents":"read"}
     assert body["repositories"] == ["r1"]
+    # TTL clamped
     assert _clamp_ttl(0) == 900
     assert _clamp_ttl(999_999) in (900, 3600)
     await client.aclose()
