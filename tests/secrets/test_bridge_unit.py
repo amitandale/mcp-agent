@@ -1,19 +1,15 @@
 import json
 import httpx
 import pytest
-
-from mcp_agent.secrets.bridge import issue_github_installation_token, _clamp_ttl, _build_github_app_jwt
-
+from mcp_agent.secrets.bridge import issue_github_installation_token, _clamp_ttl
 class GHMock(httpx.AsyncBaseTransport):
     def __init__(self):
         self.last_request = None
-
     def handle_async_request(self, request):
         self.last_request = request
         assert request.url.path.endswith("/access_tokens")
         assert request.headers.get("Accept","").startswith("application/vnd.github+json")
         return httpx.Response(201, json={"token":"ghs_xxx", "expires_at":"2099-01-01T00:00:00Z"})
-
 @pytest.mark.asyncio
 async def test_issue_token_scopes_ttl_and_headers(monkeypatch):
     monkeypatch.setenv("GITHUB_APP_ID","12345")
