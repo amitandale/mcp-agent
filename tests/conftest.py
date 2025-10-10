@@ -6,6 +6,7 @@ import asyncio
 import inspect
 import importlib.util
 import pathlib
+import sys
 from functools import lru_cache
 
 import pytest
@@ -14,7 +15,7 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parent
 SRC_TESTS = ROOT.parent / "src" / "mcp_agent" / "tests"
 
-collect_ignore_glob = ["src/mcp_agent/tests/*"]
+collect_ignore_glob = ["src/mcp_agent/tests/**"]
 
 OPTIONAL_DEPENDENCIES: dict[str, tuple[pathlib.Path, ...]] = {
     "temporalio": (
@@ -41,7 +42,36 @@ OPTIONAL_DEPENDENCIES: dict[str, tuple[pathlib.Path, ...]] = {
         ROOT / "workflows" / "router" / "test_router_embedding_cohere.py",
     ),
     "boto3": (ROOT / "workflows" / "llm" / "test_augmented_llm_bedrock.py",),
+    "trio": (
+        ROOT / "agents" / "test_agent_tasks_concurrency.py",
+        ROOT / "agents" / "test_agent_tasks_isolation.py",
+        ROOT / "mcp" / "test_connection_manager_concurrency.py",
+        ROOT / "mcp" / "test_connection_manager_lifecycle.py",
+        ROOT / "mcp" / "test_mcp_connection_manager.py",
+        ROOT / "server" / "test_app_server_memo.py",
+    ),
+    "instructor": (
+        ROOT / "workflows" / "llm" / "test_augmented_llm_ollama.py",
+    ),
 }
+
+
+def _purge_vendored_test_modules() -> None:
+    """Remove vendored test modules imported via ``PYTHONPATH`` priming."""
+
+    for name, module in list(sys.modules.items()):
+        candidate = getattr(module, "__file__", None)
+        if not candidate:
+            continue
+        try:
+            path = pathlib.Path(candidate).resolve()
+        except (FileNotFoundError, RuntimeError):
+            continue
+        if path.is_relative_to(SRC_TESTS):
+            sys.modules.pop(name, None)
+
+
+_purge_vendored_test_modules()
 
 
 @lru_cache(maxsize=None)
@@ -84,6 +114,25 @@ def pytest_ignore_collect(collection_path: pathlib.Path, config: pytest.Config) 
             if _matches(candidate, target):
                 return True
     return False
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_pycollect_makemodule(module_path, parent):
+    """Clear vendored modules before pytest imports a test module."""
+
+    module_path = pathlib.Path(str(module_path))
+    module_name = module_path.stem
+    existing = sys.modules.get(module_name)
+    if existing is not None:
+        candidate = getattr(existing, "__file__", None)
+        if candidate:
+            try:
+                resolved = pathlib.Path(candidate).resolve()
+            except (FileNotFoundError, RuntimeError):
+                resolved = None
+            if resolved and resolved.is_relative_to(SRC_TESTS):
+                sys.modules.pop(module_name, None)
+    return None
 
 
 @pytest.hookimpl(tryfirst=True)
