@@ -5,7 +5,10 @@ import time
 import uuid
 from typing import Dict, List, Tuple, Set
 
-import jwt
+try:
+    import jwt
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    jwt = None  # type: ignore[assignment]
 from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route, Router
@@ -54,14 +57,14 @@ def _authenticate(request: Request) -> Tuple[bool, str]:
     if auth and auth.lower().startswith("bearer "):
         token = auth.split(" ", 1)[1]
         hs = os.getenv("JWT_HS256_SECRET")
-        if hs:
+        if hs and jwt is not None:
             try:
                 jwt.decode(token, hs, algorithms=["HS256"], options={"verify_aud": False})
                 return True, "jwt_hs256"
             except Exception:
                 pass
         pub = os.getenv("JWT_PUBLIC_KEY_PEM")
-        if pub:
+        if pub and jwt is not None:
             try:
                 jwt.decode(token, pub, algorithms=["RS256"], options={"verify_aud": False})
                 return True, "jwt_rs256"
