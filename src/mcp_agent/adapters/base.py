@@ -1,27 +1,81 @@
-from typing import Any, Dict, Optional
-from jsonschema import validate, ValidationError
+"""Typed adapter base class for MCP tool clients."""
+
+from __future__ import annotations
+
+from typing import Any, Mapping, Optional, Type, TypeVar
+
+from pydantic import BaseModel, ConfigDict, ValidationError
+
 from ..client.http import HTTPClient
-from ..errors.canonical import map_schema_error
+from ..errors.canonical import map_validation_error
+
+
+ResponseModelT = TypeVar("ResponseModelT", bound=BaseModel)
+
+
+class StrictModel(BaseModel):
+    """Base class enforcing strict validation for DTOs."""
+
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=False)
+
 
 class BaseAdapter:
-    def __init__(self, tool: str, base_url: str, schema: Optional[Dict[str, Any]] = None, client: Optional[HTTPClient] = None):
-        self.tool = tool
-        self.client = client or HTTPClient(tool, base_url)
-        self.schema = schema
+    """Base adapter providing typed helpers for tool interactions."""
 
-    def _validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if not self.schema:
-            return data
+    def __init__(
+        self,
+        tool_id: str,
+        base_url: str,
+        *,
+        client: Optional[HTTPClient] = None,
+        default_headers: Optional[Mapping[str, str]] = None,
+    ) -> None:
+        self.tool_id = tool_id
+        self._client = client or HTTPClient(tool_id, base_url, default_headers=default_headers)
+
+    @property
+    def client(self) -> HTTPClient:
+        return self._client
+
+    async def _request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: Optional[Mapping[str, str]] = None,
+        params: Optional[Mapping[str, Any]] = None,
+        json_body: Any = None,
+        data: Any = None,
+        response_model: Optional[Type[ResponseModelT]] = None,
+        idempotent: Optional[bool] = None,
+    ) -> ResponseModelT | Any:
+        raw = await self.client.request_json(
+            method,
+            path,
+            headers=headers,
+            params=params,
+            json_body=json_body,
+            data=data,
+            idempotent=idempotent if idempotent is not None else self._idempotent(method, path),
+        )
+        if response_model is None:
+            return raw
+        return self._validate(response_model, raw)
+
+    def _idempotent(self, method: str, path: str) -> bool:
+        return method.upper() in HTTPClient.IDEMPOTENT_METHODS
+
+    def _validate(self, model: Type[ResponseModelT], data: Any) -> ResponseModelT:
+        if not issubclass(model, BaseModel):  # pragma: no cover - defensive programming
+            raise TypeError("response_model must be a Pydantic model class")
         try:
-            validate(data, self.schema)
-            return data
-        except ValidationError as e:
-            raise map_schema_error(self.tool, e)
+            return model.model_validate(data)
+        except ValidationError as exc:
+            raise map_validation_error(self.tool_id, exc, self._trace_id()) from exc
 
-    def get(self, path: str) -> Dict[str, Any]:
-        data = self.client.get_json(path)
-        return self._validate(data)
+    def _trace_id(self) -> int:
+        from opentelemetry import trace
 
-    def post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        data = self.client.post_json(path, json=payload)
-        return self._validate(data)
+        span = trace.get_current_span()
+        return span.get_span_context().trace_id if span else 0
+

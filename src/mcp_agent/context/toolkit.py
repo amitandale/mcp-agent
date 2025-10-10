@@ -67,9 +67,6 @@ class RegistryToolKit:
         except Exception:
             pass
 
-    async def _to_thread(self, func, *args, **kwargs):
-        return await asyncio.to_thread(func, *args, **kwargs)
-
     def _refresh_registry(self):
         if registry_store is None:
             self._tools = {}
@@ -110,10 +107,15 @@ class RegistryToolKit:
         if sig:
             headers["X-Signature"] = sig
             headers["Authorization"] = f"Signature {sig}"
-        kwargs = {"headers": headers}
-        if timeout_ms:
-            kwargs["timeout"] = timeout_ms / 1000.0
-        return await self._to_thread(client.post_json, path, json=payload, **kwargs)
+        timeout = timeout_ms / 1000.0 if timeout_ms else None
+        result = await client.request_json(
+            "POST",
+            path,
+            headers=headers,
+            json_body=payload,
+            timeout=timeout,
+        )
+        return result or {}
 
     def _cache_key(self, op: str, payload: Dict[str, Any]) -> Tuple[str, str, str]:
         v = "|".join([f"{k}:{self.tool_versions.get(k,'')}" for k in sorted(self.tool_versions)])
