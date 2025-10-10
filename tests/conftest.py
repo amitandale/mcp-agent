@@ -94,10 +94,26 @@ def pytest_pyfunc_call(pyfuncitem: pytest.Function) -> bool | None:
         return None
 
     if inspect.iscoroutinefunction(pyfuncitem.obj):
+        sig = inspect.signature(pyfuncitem.obj)
+        parameters = sig.parameters
+        accepts_kwargs = any(
+            param.kind is inspect.Parameter.VAR_KEYWORD
+            for param in parameters.values()
+        )
+
+        call_kwargs = {}
+        for name, param in parameters.items():
+            if name in pyfuncitem.funcargs:
+                call_kwargs[name] = pyfuncitem.funcargs[name]
+
+        if accepts_kwargs:
+            for name, value in pyfuncitem.funcargs.items():
+                call_kwargs.setdefault(name, value)
+
         loop = asyncio.new_event_loop()
         try:
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(pyfuncitem.obj(**pyfuncitem.funcargs))
+            loop.run_until_complete(pyfuncitem.obj(**call_kwargs))
             loop.run_until_complete(loop.shutdown_asyncgens())
         finally:
             asyncio.set_event_loop(None)
