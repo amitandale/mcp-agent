@@ -11,7 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2] / "src"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mcp_agent.errors.canonical import CanonicalError
+from mcp_agent.errors.canonical import CanonicalError  # noqa: E402
 
 
 @pytest.mark.anyio

@@ -9,7 +9,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2] / "src"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mcp_agent.errors.canonical import (
+from mcp_agent.errors.canonical import (  # noqa: E402
     map_breaker_open,
     map_http_exception,
     map_http_response,
