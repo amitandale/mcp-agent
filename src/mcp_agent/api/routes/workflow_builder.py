@@ -6,12 +6,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route, Router
 
-from mcp_agent.models.workflow import (
-    WorkflowDefinition,
-    WorkflowPatch,
-    WorkflowStep,
-    WorkflowStepPatch,
-)
+from mcp.types import WorkflowDefinition, WorkflowPatch, WorkflowStep, WorkflowStepPatch
 from mcp_agent.workflows.composer import (
     WorkflowComposerError,
     WorkflowNotFoundError,

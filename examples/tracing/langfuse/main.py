@@ -4,7 +4,7 @@ import time
 
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
-from mcp_agent.human_input.types import HumanInputRequest, HumanInputResponse
+from mcp.types import HumanInputRequest, HumanInputResponse
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 

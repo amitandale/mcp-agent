@@ -21,7 +21,7 @@ from typing import (
 )
 import inspect
 
-from mcp_agent.human_input.types import HumanInputRequest
+from mcp.types import HumanInputRequest
 from pydantic import ConfigDict
 from temporalio import activity, workflow, exceptions
 from temporalio.client import Client as TemporalClient, WorkflowHandle

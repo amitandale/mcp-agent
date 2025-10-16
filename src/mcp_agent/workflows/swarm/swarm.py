@@ -12,7 +12,7 @@ from mcp.types import (
 )
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.human_input.types import HumanInputCallback
+from mcp.types import HumanInputCallback
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,

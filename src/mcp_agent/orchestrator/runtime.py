@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, Iterable
 
-from mcp_agent.models.orchestrator import (
+from mcp.types import (
     OrchestratorEvent,
     OrchestratorPlan,
     OrchestratorQueueItem,

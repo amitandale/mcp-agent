@@ -34,7 +34,7 @@ from mcp_agent.executor.decorator_registry import (
 from mcp_agent.executor.task_registry import ActivityRegistry
 from mcp_agent.executor.workflow_signal import SignalWaitCallback
 from mcp_agent.executor.workflow_task import GlobalWorkflowTaskRegistry
-from mcp_agent.human_input.types import HumanInputCallback
+from mcp.types import HumanInputCallback
 from mcp_agent.elicitation.types import ElicitationCallback
 from mcp_agent.server.tool_adapter import validate_tool_schema
 from mcp_agent.tracing.telemetry import get_tracer

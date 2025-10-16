@@ -37,7 +37,7 @@ from mcp_agent.tracing.token_counter import TokenCounter
 
 if TYPE_CHECKING:
     from mcp.types import AgentSpec
-    from mcp_agent.human_input.types import HumanInputCallback
+    from mcp.types import HumanInputCallback
     from mcp_agent.elicitation.types import ElicitationCallback
     from mcp_agent.executor.workflow_signal import SignalWaitCallback
     from mcp_agent.executor.workflow_registry import WorkflowRegistry

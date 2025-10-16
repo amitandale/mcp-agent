@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Dict
 
-from mcp_agent.human_input.types import HumanInputRequest, HumanInputResponse
+from mcp.types import HumanInputRequest, HumanInputResponse
 
 
 @dataclass

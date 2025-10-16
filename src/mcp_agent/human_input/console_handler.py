@@ -3,7 +3,7 @@ from typing import Optional
 
 from rich.panel import Panel
 from mcp_agent.console import console
-from mcp_agent.human_input.types import HumanInputRequest, HumanInputResponse
+from mcp.types import HumanInputRequest, HumanInputResponse
 from mcp_agent.logging.progress_display import progress_display
 from mcp_agent.logging.logger import get_logger
 

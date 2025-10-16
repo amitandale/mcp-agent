@@ -18,7 +18,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from mcp_agent.human_input.types import HumanInputRequest
+from mcp.types import HumanInputRequest
 from pydantic import BaseModel, ConfigDict
 
 from mcp_agent.core.context_dependent import ContextDependent

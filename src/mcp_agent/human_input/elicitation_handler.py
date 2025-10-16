@@ -1,7 +1,7 @@
 import asyncio
 
 import mcp.types as types
-from mcp_agent.human_input.types import HumanInputRequest, HumanInputResponse
+from mcp.types import HumanInputRequest, HumanInputResponse
 from mcp_agent.logging.logger import get_logger
 
 logger = get_logger(__name__)

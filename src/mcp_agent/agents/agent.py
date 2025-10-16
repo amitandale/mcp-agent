@@ -36,11 +36,7 @@ from mcp_agent.mcp.mcp_aggregator import (
     NamespacedTool,
     NamespacedResource,
 )
-from mcp_agent.human_input.types import (
-    HumanInputRequest,
-    HumanInputResponse,
-    HUMAN_INPUT_SIGNAL_NAME,
-)
+from mcp.types import HUMAN_INPUT_SIGNAL_NAME, HumanInputRequest, HumanInputResponse
 
 from mcp_agent.logging.logger import get_logger
 

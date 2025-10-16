@@ -12,7 +12,7 @@ import yaml
 
 from mcp.types import AgentSpec
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.models.agent import AgentSpecEnvelope, AgentSpecPatch, AgentSpecPayload
+from mcp.types import AgentSpecEnvelope, AgentSpecPatch, AgentSpecPayload
 
 logger = get_logger(__name__)
 

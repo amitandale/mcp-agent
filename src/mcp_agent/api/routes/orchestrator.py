@@ -9,11 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route, Router
 
-from mcp_agent.models.orchestrator import (
-    OrchestratorPlan,
-    OrchestratorQueueItem,
-    OrchestratorStatePatch,
-)
+from mcp.types import OrchestratorPlan, OrchestratorQueueItem, OrchestratorStatePatch
 from mcp_agent.orchestrator.runtime import orchestrator_runtime
 
 

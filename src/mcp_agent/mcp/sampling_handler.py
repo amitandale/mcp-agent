@@ -148,7 +148,7 @@ class SamplingHandler(ContextDependent):
         if not self.context.human_input_handler:
             return params, ""
 
-        from mcp_agent.human_input.types import HumanInputRequest
+        from mcp.types import HumanInputRequest
 
         request_summary = _format_sampling_request_for_human(params)
 
@@ -177,7 +177,7 @@ class SamplingHandler(ContextDependent):
         if not self.context.human_input_handler:
             return result, ""
 
-        from mcp_agent.human_input.types import HumanInputRequest
+        from mcp.types import HumanInputRequest
 
         response_summary = _format_sampling_response_for_human(result)
 

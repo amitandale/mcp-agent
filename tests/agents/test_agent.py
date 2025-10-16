@@ -5,10 +5,7 @@ from mcp.server.fastmcp.tools import Tool as FastTool
 from mcp.types import CallToolResult, TextContent, Tool
 
 from mcp_agent.agents.agent import Agent, HUMAN_INPUT_TOOL_NAME
-from mcp_agent.human_input.types import (
-    HumanInputRequest,
-    HumanInputResponse,
-)
+from mcp.types import HumanInputRequest, HumanInputResponse
 from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
 
 

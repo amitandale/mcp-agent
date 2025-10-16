@@ -10,7 +10,7 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route, Router
 
 from mcp_agent.human_input.runtime import human_input_runtime
-from mcp_agent.human_input.types import HumanInputResponse
+from mcp.types import HumanInputResponse
 
 
 async def list_pending(_request: Request) -> JSONResponse:

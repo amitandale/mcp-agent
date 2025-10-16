@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 from mcp_agent.executor.workflow import Workflow
-from mcp_agent.human_input.types import HumanInputRequest, HumanInputResponse
+from mcp.types import HumanInputRequest, HumanInputResponse
 from mcp_agent.logging.logger import get_logger
 
 from temporalio import workflow

@@ -1,12 +1,12 @@
 """Compatibility re-export of workflow models."""
 
-from mcp import types as _types
-
-WorkflowDefinition = _types.WorkflowDefinition
-WorkflowPatch = _types.WorkflowPatch
-WorkflowStep = _types.WorkflowStep
-WorkflowStepPatch = _types.WorkflowStepPatch
-WorkflowSummary = _types.WorkflowSummary
+from mcp.types import (
+    WorkflowDefinition,
+    WorkflowPatch,
+    WorkflowStep,
+    WorkflowStepPatch,
+    WorkflowSummary,
+)
 
 __all__ = [
     "WorkflowDefinition",

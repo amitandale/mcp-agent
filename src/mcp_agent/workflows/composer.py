@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Dict
 
-from mcp_agent.models.workflow import (
+from mcp.types import (
     WorkflowDefinition,
     WorkflowPatch,
     WorkflowStep,

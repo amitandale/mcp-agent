@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 import mcp.types as types
 from mcp_agent.executor.temporal.session_proxy import SessionProxy
-from mcp_agent.human_input.types import HumanInputRequest, HumanInputResponse
+from mcp.types import HumanInputRequest, HumanInputResponse
 from mcp_agent.human_input.elicitation_handler import (
     elicitation_input_callback,
     _create_elicitation_message,

@@ -6,7 +6,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Route, Router
 
-from mcp_agent.models.agent import AgentSpecListResponse, AgentSpecPatch, AgentSpecPayload
+from mcp.types import AgentSpecListResponse, AgentSpecPatch, AgentSpecPayload
 from mcp_agent.registry.agent import (
     AgentAlreadyExistsError,
     AgentNotFoundError,
