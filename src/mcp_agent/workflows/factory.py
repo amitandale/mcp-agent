@@ -8,7 +8,7 @@ import importlib
 from glob import glob
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.agents.agent_spec import AgentSpec
+from mcp.types import AgentSpec
 from mcp_agent.core.context import Context
 from mcp_agent.workflows.embedding.embedding_base import EmbeddingModel
 from mcp_agent.workflows.intent_classifier.intent_classifier_embedding import (

@@ -44,7 +44,7 @@ from mcp_agent.workflows.factory import load_agent_specs_from_dir
 
 
 if TYPE_CHECKING:
-    from mcp_agent.agents.agent_spec import AgentSpec
+    from mcp.types import AgentSpec
     from mcp_agent.executor.workflow import Workflow
 
 P = ParamSpec("P")

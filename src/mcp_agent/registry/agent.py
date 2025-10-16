@@ -10,7 +10,7 @@ from typing import Dict, Iterable, Mapping, MutableMapping
 
 import yaml
 
-from mcp_agent.agents.agent_spec import AgentSpec
+from mcp.types import AgentSpec
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.models.agent import AgentSpecEnvelope, AgentSpecPatch, AgentSpecPayload
 

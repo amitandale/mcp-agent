@@ -11,7 +11,6 @@ from typing import (
     Literal,
     Optional,
     Protocol,
-    TYPE_CHECKING,
     TypeAlias,
     TypeVar,
 )
@@ -19,8 +18,6 @@ from typing import (
 from pydantic import BaseModel, ConfigDict, Field, FileUrl, RootModel, field_validator, model_validator
 from pydantic.networks import AnyUrl, UrlConstraints
 from typing_extensions import deprecated
-
-from mcp_agent.agents.agent_spec import AgentSpec
 
 """
 Model Context Protocol bindings for Python
@@ -1386,6 +1383,26 @@ def _ensure_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+class AgentSpec(BaseModel):
+    """Canonical specification describing how to instantiate an agent."""
+
+    name: str
+    """Human-friendly name for the agent."""
+
+    instruction: str | None = Field(default=None, description="High-level guidance.")
+    """Optional instruction or system prompt used when the agent runs."""
+
+    server_names: list[str] = Field(default_factory=list)
+    """Identifiers of MCP servers the agent may connect to."""
+
+    connection_persistence: bool = Field(
+        default=True,
+        description="Whether the agent should keep MCP connections open between calls.",
+    )
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+
 class AgentSpecPayload(BaseModel):
     """Payload used to create a new :class:`AgentSpec`."""
 
@@ -1422,8 +1439,6 @@ class AgentSpecPayload(BaseModel):
 
     def build_spec(self) -> "AgentSpec":
         """Return an :class:`AgentSpec` instance for this payload."""
-
-        from mcp_agent.agents.agent_spec import AgentSpec
 
         payload: Dict[str, Any] = {
             "name": self.name,

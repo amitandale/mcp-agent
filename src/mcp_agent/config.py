@@ -15,7 +15,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
 
-from mcp_agent.agents.agent_spec import AgentSpec
+from mcp.types import AgentSpec
 
 
 class MCPServerAuthSettings(BaseModel):

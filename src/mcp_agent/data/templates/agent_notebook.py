@@ -2,7 +2,7 @@
 """Jupyter Notebook compatible MCP-Agent."""
 
 from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent_spec import AgentSpec
+from mcp.types import AgentSpec
 from mcp_agent.workflows.factory import create_llm
 
 

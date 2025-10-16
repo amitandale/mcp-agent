@@ -2,7 +2,7 @@
 """Basic MCP-Agent example."""
 
 from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent_spec import AgentSpec
+from mcp.types import AgentSpec
 
 # Create the MCP application
 app = MCPApp("My Agent")
