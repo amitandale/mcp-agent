@@ -8,11 +8,20 @@ from numpy import average
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from mcp.types import ModelHint, ModelPreferences
+from mcp_agent.config import LLMGatewaySettings
 from mcp_agent.core.context_dependent import ContextDependent
 from mcp_agent.tracing.telemetry import get_tracer
 
 if TYPE_CHECKING:
+    from mcp_agent.config import Settings
     from mcp_agent.core.context import Context
+
+
+class ProviderHandle(BaseModel):
+    """Resolved provider information returned by :func:`select_llm_provider`."""
+
+    provider: str
+    model: str | None = None
 
 
 class ModelBenchmarks(BaseModel):
@@ -494,3 +503,98 @@ def _fuzzy_match(str1: str, str2: str, threshold: float = 0.8) -> bool:
     """
     sequence_ratio = SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
     return sequence_ratio >= threshold
+
+
+def select_llm_provider_chain(model_hint: str | None, cfg: "Settings") -> List[ProviderHandle]:
+    """Resolve an ordered provider chain for the LLM gateway."""
+
+    def _configured() -> Dict[str, str | None]:
+        providers: Dict[str, str | None] = {}
+        candidates = (
+            "openai",
+            "anthropic",
+            "azure",
+            "google",
+            "bedrock",
+            "cohere",
+        )
+        for name in candidates:
+            settings_obj = getattr(cfg, name, None)
+            if not settings_obj:
+                continue
+            key_name = "api_key"
+            if name == "bedrock":
+                key_name = "aws_access_key_id"
+            api_key = getattr(settings_obj, key_name, None)
+            if api_key:
+                providers[name] = getattr(settings_obj, "default_model", None)
+        return providers
+
+    available = _configured()
+    if not available:
+        return []
+
+    gw_cfg = cfg.llm_gateway or LLMGatewaySettings()
+
+    provider: str | None = None
+    model: str | None = None
+    if model_hint:
+        if ":" in model_hint:
+            prov, mdl = model_hint.split(":", 1)
+            provider = prov.strip() or None
+            model = mdl.strip() or None
+        else:
+            hint_lower = model_hint.strip().lower()
+            if hint_lower in available:
+                provider = hint_lower
+            else:
+                model = model_hint.strip()
+
+    chain: List[ProviderHandle] = []
+    seen: set[str] = set()
+
+    def _resolve_model(provider_name: str, explicit: str | None, prefer_hint: bool) -> str | None:
+        if explicit:
+            return explicit
+        if prefer_hint and model:
+            return model
+        if gw_cfg.llm_default_model and provider_name != (gw_cfg.llm_default_provider or "").lower():
+            return gw_cfg.llm_default_model
+        return available.get(provider_name)
+
+    def _add_provider(provider_name: str | None, *, explicit_model: str | None = None, prefer_hint: bool = False) -> None:
+        if not provider_name:
+            return
+        key = provider_name.lower()
+        if key not in available or key in seen:
+            return
+        resolved_model = _resolve_model(key, explicit_model, prefer_hint)
+        chain.append(ProviderHandle(provider=key, model=resolved_model))
+        seen.add(key)
+
+    if provider:
+        _add_provider(provider, explicit_model=model, prefer_hint=True)
+
+    for fallback in gw_cfg.llm_provider_chain:
+        _add_provider(fallback.provider, explicit_model=fallback.model)
+
+    if gw_cfg.llm_default_provider:
+        _add_provider(
+            gw_cfg.llm_default_provider,
+            explicit_model=gw_cfg.llm_default_model,
+            prefer_hint=bool(model) and not chain,
+        )
+
+    for name, default_model in available.items():
+        _add_provider(name, explicit_model=default_model, prefer_hint=bool(model) and not chain)
+
+    return chain
+
+
+def select_llm_provider(model_hint: str | None, cfg: "Settings") -> ProviderHandle:
+    """Resolve the primary provider handle for backwards compatibility."""
+
+    chain = select_llm_provider_chain(model_hint, cfg)
+    if not chain:
+        raise ValueError("No LLM providers are configured")
+    return chain[0]

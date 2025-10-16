@@ -302,6 +302,13 @@ The following are the building blocks of the mcp-agent framework:
 
 Everything in the framework is a derivative of these core capabilities.
 
+### LLM Gateway Enhancements
+
+- **Provider failover**: Configure an ordered `llm_provider_chain` so the gateway automatically retries alternate providers (OpenAI → Anthropic → …) on quota exhaustion or outages. Each switch is surfaced via `llm/provider_failover` SSE events and the `llm_provider_fallback_total` metric.
+- **Strict streaming budgets**: Set `llm_tokens_cap` or `llm_cost_cap_usd` and the gateway aborts as soon as limits are hit, returning `finish_reason="stop_on_budget"`, emitting `llm/budget_exhausted`, and incrementing `llm_budget_abort_total`.
+- **Multi-subscriber SSE fan-out**: All LLM events are distributed to every interested UI/log consumer through a thread-safe fan-out. Active consumers are tracked with the `llm_sse_consumer_count` up/down counter.
+- **Audit-grade telemetry**: Additional SSE events (`llm/provider_selected`, `llm/provider_failed`, `llm/provider_succeeded`) and OpenTelemetry spans capture provider selection, retries, fallback decisions, and completion summaries for full observability.
+
 ## Workflows
 
 mcp-agent provides implementations for every pattern in Anthropic’s [Building Effective Agents](https://www.anthropic.com/research/building-effective-agents), as well as the OpenAI [Swarm](https://github.com/openai/swarm) pattern.
@@ -556,6 +563,29 @@ orchestrator = Orchestrator(
 
 </details>
 
+## Multi-language Test Runner
+
+The agent now provides a first-class, multi-language test runner abstraction that normalizes output across Python, JavaScript, Java, Go, Rust, and Bash projects. The runner automatically detects the best adapter for a project, executes the configured commands, synthesizes JUnit XML when necessary, and persists run artifacts (stdout/stderr, normalized JUnit, metadata) for downstream CI tooling. Telemetry events capture the exit state, duration, and artifact hashes for auditing.
+
+```python
+from pathlib import Path
+
+from mcp_agent.tests.runner import TestRunnerManager, TestRunnerSpec
+
+manager = TestRunnerManager()
+result = manager.run(
+    TestRunnerSpec(
+        project_root=Path("examples/project"),
+        language="javascript",  # Auto-detected when omitted
+    )
+)
+
+print("tests:", result.normalized.summary)
+print("artifacts:", result.artifacts)
+```
+
+See [`docs/test_runner.md`](docs/test_runner.md) for adapter coverage, configuration options, and CI integration examples.
+
 ### Signaling and Human Input
 
 **Signaling**: The framework can pause/resume tasks. The agent or LLM might “signal” that it needs user input, so the workflow awaits. A developer may signal during a workflow to seek approval or review before continuing with a workflow.
@@ -692,6 +722,38 @@ async with aggregator:
 ```
 
 </details>
+
+## Docker images
+
+We ship a Dockerfile that can be used for both local development and production deployments. Local builds stay on your machine by default, while maintainers can explicitly publish trusted images to GitHub's Container Registry (GHCR).
+
+### Local development builds
+
+- Run `make docker-build` to build the image locally. By default this produces an image tagged `mcp-agent:dev` in your local Docker cache.
+- Override the tag or name when needed:
+
+  ```bash
+  make docker-build DOCKER_IMAGE_NAME=mcp-agent DOCKER_IMAGE_TAG=feature-x
+  ```
+
+- Start the container for manual testing using `make docker-run`, which maps port `8080` so the health endpoint is reachable at `http://localhost:8080/health`.
+
+These commands never push images; they only update the local Docker store on your workstation, CI runner, or VPS.
+
+### Publishing to GHCR
+
+For production releases, a dedicated GitHub Actions workflow (`Push Production Docker Image`) rebuilds the Docker image from the repository and pushes it to GHCR on demand. This keeps the registry free from experimental builds while guaranteeing that published images are reproducible from version-controlled sources.
+
+1. Ensure the repository has a `GHCR_TOKEN` secret with `write:packages` scope.
+2. Build and test the image locally using the commands above (optional but recommended).
+3. From the GitHub **Actions** tab, run the "Push Production Docker Image" workflow.
+   - Supply the desired tag (for example, `v1.2.3` or `latest`).
+   - Optionally override the image name; it defaults to `mcp-agent` and publishes to `ghcr.io/<org>/mcp-agent:<tag>`.
+   - Choose where the workflow runs by setting the `runner_labels` input. It accepts a JSON array, so you can keep the default
+     `["ubuntu-latest"]` for GitHub-hosted runners or provide something like `["self-hosted", "linux", "x64"]` to use your own
+     VPS runner.
+
+The workflow automatically adds a content-addressable `sha` tag for traceability alongside the manual tag you provide.
 
 ## Contributing
 
