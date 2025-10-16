@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Mapping, MutableMapping
+from typing import Dict, Iterable, Mapping
 
 from mcp_agent.registry.models import ToolItem
 from mcp_agent.registry.store import store

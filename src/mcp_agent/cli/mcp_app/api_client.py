@@ -1,67 +1,44 @@
 """MCP App API client implementation for the MCP Agent Cloud API."""
 
-from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
-from pydantic import BaseModel
+from mcp.types import (
+    AppServerInfo as _AppServerInfo,
+    CanDoActionCheck as _CanDoActionCheck,
+    CanDoActionsResponse as _CanDoActionsResponse,
+    GetAppLogsResponse as _GetAppLogsResponse,
+    ListAppConfigurationsResponse as _ListAppConfigurationsResponse,
+    ListAppsResponse as _ListAppsResponse,
+    LogEntry as _LogEntry,
+    MCPApp as _MCPApp,
+    MCPAppConfiguration as _MCPAppConfiguration,
+)
 
 from mcp_agent.cli.core.api_client import APIClient
 
+AppServerInfo = _AppServerInfo
+MCPApp = _MCPApp
+MCPAppConfiguration = _MCPAppConfiguration
+ListAppsResponse = _ListAppsResponse
+ListAppConfigurationsResponse = _ListAppConfigurationsResponse
+CanDoActionCheck = _CanDoActionCheck
+CanDoActionsResponse = _CanDoActionsResponse
+LogEntry = _LogEntry
+GetAppLogsResponse = _GetAppLogsResponse
 
-class AppServerInfo(BaseModel):
-    serverUrl: str
-    status: Literal[
-        "APP_SERVER_STATUS_UNSPECIFIED",
-        "APP_SERVER_STATUS_ONLINE",
-        "APP_SERVER_STATUS_OFFLINE",
-    ]  # Enums: 0=UNSPECIFIED, 1=ONLINE, 2=OFFLINE
-
-
-# A developer-deployed MCP App which others can configure and use.
-class MCPApp(BaseModel):
-    appId: str
-    name: str
-    creatorId: str
-    description: Optional[str] = None
-    createdAt: datetime
-    updatedAt: datetime
-    appServerInfo: Optional[AppServerInfo] = None
-    deploymentMetadata: Optional[Dict[str, Any]] = None
-
-
-# A user-configured MCP App 'instance', created by configuring a deployed MCP App.
-class MCPAppConfiguration(BaseModel):
-    appConfigurationId: str
-    app: Optional[MCPApp] = None
-    creatorId: str
-    createdAt: Optional[datetime] = None
-    appServerInfo: Optional[AppServerInfo] = None
-
-
-class ListAppsResponse(BaseModel):
-    apps: Optional[
-        List[MCPApp]
-    ] = []  # Proto treats empty list and 0 and undefined so must be optional!
-    nextPageToken: Optional[str] = None
-    totalCount: Optional[int] = 0
-
-
-class ListAppConfigurationsResponse(BaseModel):
-    appConfigurations: Optional[
-        List[MCPAppConfiguration]
-    ] = []  # Proto treats empty list and 0 and undefined so must be optional!
-    nextPageToken: Optional[str] = None
-    totalCount: Optional[int] = 0
-
-
-class CanDoActionCheck(BaseModel):
-    action: str
-    canDoAction: Optional[bool] = False
-
-
-class CanDoActionsResponse(BaseModel):
-    canDoActions: Optional[List[CanDoActionCheck]] = []
+__all__ = [
+    "AppServerInfo",
+    "MCPApp",
+    "MCPAppConfiguration",
+    "ListAppsResponse",
+    "ListAppConfigurationsResponse",
+    "CanDoActionCheck",
+    "CanDoActionsResponse",
+    "LogEntry",
+    "GetAppLogsResponse",
+    "MCPAppClient",
+]
 
 
 APP_ID_PREFIX = "app_"
@@ -103,29 +80,6 @@ def is_valid_server_url_format(server_url: str) -> bool:
     """
     parsed = urlparse(server_url)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
-
-
-class LogEntry(BaseModel):
-    """Represents a single log entry."""
-
-    timestamp: Optional[str] = None
-    level: Optional[str] = None
-    message: Optional[str] = None
-    # Allow additional fields that might be present
-
-    class Config:
-        extra = "allow"
-
-
-class GetAppLogsResponse(BaseModel):
-    """Response from get_app_logs API endpoint."""
-
-    logEntries: Optional[List[LogEntry]] = []
-
-    @property
-    def log_entries_list(self) -> List[LogEntry]:
-        """Get log entries regardless of field name format."""
-        return self.logEntries or []
 
 
 class MCPAppClient(APIClient):

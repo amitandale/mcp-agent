@@ -1,9 +1,26 @@
 from collections.abc import Callable
-from typing import Annotated, Any, Generic, Literal, TypeAlias, TypeVar
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Protocol,
+    TYPE_CHECKING,
+    TypeAlias,
+    TypeVar,
+)
 
-from pydantic import BaseModel, ConfigDict, Field, FileUrl, RootModel
+from pydantic import BaseModel, ConfigDict, Field, FileUrl, RootModel, field_validator, model_validator
 from pydantic.networks import AnyUrl, UrlConstraints
 from typing_extensions import deprecated
+
+from mcp_agent.agents.agent_spec import AgentSpec
 
 """
 Model Context Protocol bindings for Python
@@ -1348,3 +1365,458 @@ class ServerResult(
     ]
 ):
     pass
+
+
+# ---------------------------------------------------------------------------
+# Administrative and runtime management models
+# ---------------------------------------------------------------------------
+
+
+def _utc_now() -> datetime:
+    """Return the current UTC timestamp."""
+
+    return datetime.now(timezone.utc)
+
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """Normalize a datetime into UTC."""
+
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+class AgentSpecPayload(BaseModel):
+    """Payload used to create a new :class:`AgentSpec`."""
+
+    name: str = Field(..., description="Unique identifier for the agent.")
+    instruction: Optional[str] = Field(
+        default=None, description="Default high level instruction for the agent."
+    )
+    server_names: list[str] = Field(
+        default_factory=list,
+        description="MCP server names the agent should connect to by default.",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Free-form metadata stored alongside the spec."
+    )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="Optional tag list used for UI filtering and grouping.",
+    )
+    extra: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional keyword arguments forwarded to the AgentSpec constructor.",
+    )
+
+    model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="after")
+    def _merge_extra(self) -> "AgentSpecPayload":
+        for key, value in list(self.model_extra.items()):
+            if key in self.model_fields:
+                continue
+            self.extra[key] = value
+            del self.model_extra[key]
+        return self
+
+    def build_spec(self) -> "AgentSpec":
+        """Return an :class:`AgentSpec` instance for this payload."""
+
+        from mcp_agent.agents.agent_spec import AgentSpec
+
+        payload: Dict[str, Any] = {
+            "name": self.name,
+            "instruction": self.instruction,
+            "server_names": list(self.server_names),
+        }
+        payload.update(self.extra)
+        return AgentSpec(**payload)
+
+
+class AgentSpecPatch(BaseModel):
+    """Patch payload for updating an :class:`AgentSpec`."""
+
+    name: Optional[str] = None
+    instruction: Optional[str] = None
+    server_names: Optional[list[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    tags: Optional[list[str]] = None
+    extra: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="after")
+    def _merge_extra(self) -> "AgentSpecPatch":
+        if self.extra is None:
+            self.extra = {}
+        for key, value in list(self.model_extra.items()):
+            if key in self.model_fields:
+                continue
+            self.extra[key] = value
+            del self.model_extra[key]
+        return self
+
+
+class AgentSpecEnvelope(BaseModel):
+    """Envelope returned for a single agent specification."""
+
+    id: str
+    spec: AgentSpec
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(
+        default_factory=_utc_now,
+        description="Creation timestamp in UTC.",
+    )
+    updated_at: datetime = Field(
+        default_factory=_utc_now,
+        description="Last modification timestamp in UTC.",
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def with_updates(self, **updates: Any) -> "AgentSpecEnvelope":
+        data = self.model_dump()
+        data.update(updates)
+        return AgentSpecEnvelope(**data)
+
+
+class AgentSpecListResponse(BaseModel):
+    """List response for agent specifications."""
+
+    items: list[AgentSpecEnvelope]
+    total: int
+
+
+AgentSpecEnvelope.model_rebuild()
+
+
+class ToolItem(BaseModel):
+    """Normalized representation of an MCP tool server."""
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    id: str
+    name: str
+    version: str = Field(default="0.0.0")
+    base_url: str
+    alive: bool
+    latency_ms: float = Field(default=0.0, ge=0.0)
+    capabilities: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    last_checked_ts: datetime = Field(default_factory=_utc_now)
+    failure_reason: str | None = None
+    consecutive_failures: int = Field(default=0, ge=0)
+
+    @field_validator("capabilities", "tags", mode="after")
+    @classmethod
+    def _sort_list(cls, value: Iterable[str]) -> list[str]:
+        return sorted({str(item) for item in value})
+
+    @field_validator("last_checked_ts", mode="before")
+    @classmethod
+    def _normalize_dt(cls, value: datetime | str) -> datetime:
+        if isinstance(value, datetime):
+            return _ensure_utc(value)
+        if isinstance(value, str):
+            return _ensure_utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
+        raise TypeError("last_checked_ts must be datetime or ISO string")
+
+    @field_validator("latency_ms", mode="after")
+    @classmethod
+    def _round_latency(cls, value: float) -> float:
+        return round(float(value), 1)
+
+
+class ToolsResponse(BaseModel):
+    """Response envelope for the tools registry API."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    registry_hash: str
+    generated_at: datetime
+    items: list[ToolItem] = Field(default_factory=list)
+
+    @field_validator("generated_at", mode="before")
+    @classmethod
+    def _normalize_generated_at(cls, value: datetime | str) -> datetime:
+        if isinstance(value, datetime):
+            return _ensure_utc(value)
+        if isinstance(value, str):
+            return _ensure_utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
+        raise TypeError("generated_at must be datetime or ISO string")
+
+    def with_items(self, items: Iterable[ToolItem]) -> "ToolsResponse":
+        return ToolsResponse(
+            registry_hash=self.registry_hash,
+            generated_at=self.generated_at,
+            items=list(items),
+        )
+
+
+@dataclass
+class ToolSource:
+    """Static definition of a tool server from configuration."""
+
+    id: str
+    name: str
+    base_url: str
+    headers: dict[str, str]
+    tags: list[str]
+
+
+@dataclass
+class ToolProbeResult:
+    """Result of probing a tool source."""
+
+    id: str
+    name: str
+    version: str
+    base_url: str
+    alive: bool
+    latency_ms: float
+    capabilities: list[str]
+    tags: list[str]
+    timestamp: datetime
+    failure_reason: str | None
+
+
+class OrchestratorQueueItem(BaseModel):
+    id: str
+    agent: str
+    created_at: datetime = Field(default_factory=_utc_now)
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _normalize_datetime(cls, value: datetime | str) -> datetime:
+        if isinstance(value, datetime):
+            return value.astimezone(timezone.utc)
+        if isinstance(value, str):
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
+                timezone.utc
+            )
+        raise TypeError("created_at must be datetime or ISO formatted string")
+
+
+class OrchestratorPlanNode(BaseModel):
+    id: str
+    name: str
+    status: str = Field(default="pending")
+    agent: Optional[str] = None
+    children: list["OrchestratorPlanNode"] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class OrchestratorPlan(BaseModel):
+    root: Optional[OrchestratorPlanNode] = None
+    version: int = Field(default=0, ge=0)
+
+
+class OrchestratorState(BaseModel):
+    id: str
+    status: str = Field(default="idle")
+    active_agents: list[str] = Field(default_factory=list)
+    budget_seconds_remaining: Optional[float] = Field(default=None, ge=0.0)
+    policy: Dict[str, Any] = Field(default_factory=dict)
+    memory: Dict[str, Any] = Field(default_factory=dict)
+    last_updated: datetime = Field(default_factory=_utc_now)
+
+    @field_validator("last_updated", mode="before")
+    @classmethod
+    def _normalize_datetime(cls, value: datetime | str) -> datetime:
+        if isinstance(value, datetime):
+            return value.astimezone(timezone.utc)
+        if isinstance(value, str):
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
+                timezone.utc
+            )
+        raise TypeError("last_updated must be datetime or ISO formatted string")
+
+
+class OrchestratorSnapshot(BaseModel):
+    state: OrchestratorState
+    queue: list[OrchestratorQueueItem] = Field(default_factory=list)
+    plan: OrchestratorPlan = Field(default_factory=OrchestratorPlan)
+
+
+class OrchestratorStatePatch(BaseModel):
+    status: Optional[str] = None
+    active_agents: Optional[List[str]] = None
+    budget_seconds_remaining: Optional[float] = Field(default=None, ge=0.0)
+    policy: Optional[Dict[str, Any]] = None
+    memory: Optional[Dict[str, Any]] = None
+
+
+class OrchestratorEvent(BaseModel):
+    """Event pushed on the orchestrator SSE stream."""
+
+    id: int
+    timestamp: datetime = Field(default_factory=_utc_now)
+    type: str = Field(default="update")
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+OrchestratorPlanNode.model_rebuild()
+
+
+class WorkflowStep(BaseModel):
+    id: str
+    kind: str
+    agent: Optional[str] = Field(default=None, description="Agent or tool identifier")
+    config: Dict[str, Any] = Field(default_factory=dict)
+    children: list["WorkflowStep"] = Field(default_factory=list)
+
+
+class WorkflowDefinition(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    root: WorkflowStep
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _normalize_datetime(cls, value: datetime | str) -> datetime:
+        if isinstance(value, datetime):
+            return value.astimezone(timezone.utc)
+        if isinstance(value, str):
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
+                timezone.utc
+            )
+        raise TypeError("datetime values must be datetime or ISO formatted string")
+
+
+class WorkflowSummary(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    updated_at: datetime
+    step_count: int
+
+
+class WorkflowPatch(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class WorkflowStepPatch(BaseModel):
+    kind: Optional[str] = None
+    agent: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+WorkflowStep.model_rebuild()
+
+
+class AppServerInfo(BaseModel):
+    serverUrl: str
+    status: Literal[
+        "APP_SERVER_STATUS_UNSPECIFIED",
+        "APP_SERVER_STATUS_ONLINE",
+        "APP_SERVER_STATUS_OFFLINE",
+    ]
+
+
+class MCPApp(BaseModel):
+    """A developer-deployed MCP App which others can configure and use."""
+
+    appId: str
+    name: str
+    creatorId: str
+    description: Optional[str] = None
+    createdAt: datetime
+    updatedAt: datetime
+    appServerInfo: Optional[AppServerInfo] = None
+    deploymentMetadata: Optional[Dict[str, Any]] = None
+
+
+class MCPAppConfiguration(BaseModel):
+    """A user-configured MCP App instance."""
+
+    appConfigurationId: str
+    app: Optional[MCPApp] = None
+    creatorId: str
+    createdAt: Optional[datetime] = None
+    appServerInfo: Optional[AppServerInfo] = None
+
+
+class ListAppsResponse(BaseModel):
+    apps: Optional[List[MCPApp]] = Field(default_factory=list)
+    nextPageToken: Optional[str] = None
+    totalCount: Optional[int] = 0
+
+
+class ListAppConfigurationsResponse(BaseModel):
+    appConfigurations: Optional[List[MCPAppConfiguration]] = Field(default_factory=list)
+    nextPageToken: Optional[str] = None
+    totalCount: Optional[int] = 0
+
+
+class CanDoActionCheck(BaseModel):
+    action: str
+    canDoAction: Optional[bool] = False
+
+
+class CanDoActionsResponse(BaseModel):
+    canDoActions: Optional[List[CanDoActionCheck]] = Field(default_factory=list)
+
+
+class LogEntry(BaseModel):
+    """Represents a single log entry."""
+
+    timestamp: Optional[str] = None
+    level: Optional[str] = None
+    message: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class GetAppLogsResponse(BaseModel):
+    """Response from get_app_logs API endpoint."""
+
+    logEntries: Optional[List[LogEntry]] = Field(default_factory=list)
+
+    @property
+    def log_entries_list(self) -> List[LogEntry]:
+        """Get log entries regardless of field name format."""
+
+        return self.logEntries or []
+
+
+HUMAN_INPUT_SIGNAL_NAME = "__human_input__"
+
+
+class HumanInputRequest(BaseModel):
+    """Represents a request for human input."""
+
+    prompt: str
+    description: str | None = None
+    request_id: str | None = None
+    workflow_id: str | None = None
+    run_id: str | None = None
+    timeout_seconds: int | None = None
+    metadata: Dict[str, Any] | None = None
+
+
+class HumanInputResponse(BaseModel):
+    """Represents a response to a human input request."""
+
+    request_id: str
+    response: str
+    metadata: Dict[str, Any] | None = None
+
+
+class HumanInputCallback(Protocol):
+    """Protocol for callbacks that handle human input requests."""
+
+    async def __call__(self, request: HumanInputRequest) -> HumanInputResponse:
+        """Handle a human input request."""
+
+        ...

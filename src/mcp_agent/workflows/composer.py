@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, Iterable, Optional
+from typing import Dict
 
 from mcp_agent.models.workflow import (
     WorkflowDefinition,

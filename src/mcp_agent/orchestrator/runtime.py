@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable
 
 from mcp_agent.models.orchestrator import (
     OrchestratorEvent,
     OrchestratorPlan,
-    OrchestratorPlanNode,
     OrchestratorQueueItem,
     OrchestratorSnapshot,
     OrchestratorState,
