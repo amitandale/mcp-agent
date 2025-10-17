@@ -14,6 +14,11 @@ from mcp_agent.feature.intake import FeatureIntakeManager
 from mcp_agent.llm.events import LLMEventFanout
 from mcp_agent.runloop.events import EventBus
 from mcp_agent.api.events_sse import RunEventStream
+from mcp_agent.registry.agent import AgentRegistry
+from mcp_agent.registry.tool import ToolRuntimeRegistry
+from mcp_agent.workflows.composer import WorkflowComposer
+from mcp_agent.orchestrator.runtime import OrchestratorRuntime
+from mcp_agent.human_input.runtime import HumanInputRuntime
 
 
 class PublicAPIState:
@@ -31,6 +36,11 @@ class PublicAPIState:
         self.run_lifecycles: Dict[str, Any] = {}
         self.run_cancel_events: Dict[str, asyncio.Event] = {}
         self.run_tasks: Dict[str, asyncio.Task] = {}
+        self.agent_registry = AgentRegistry()
+        self.tool_runtime = ToolRuntimeRegistry()
+        self.workflow_composer = WorkflowComposer()
+        self.orchestrator_runtime = OrchestratorRuntime()
+        self.human_input_runtime = HumanInputRuntime()
 
     async def cancel_all_tasks(self):
         """Cancel all tracked background tasks."""
