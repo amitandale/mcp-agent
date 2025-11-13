@@ -6,3 +6,4 @@ on:
 jobs:
   checks:
     uses: ./.github/workflows/checks.yml
+    # All jobs in called workflow will run on self-hosted runner
