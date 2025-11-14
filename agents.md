@@ -16,7 +16,8 @@ The examples/ directory is strictly for learning patterns and verifying how to i
 - `src/mcp_agent/core/` — Core primitives: `Context`, `ContextDependent`, request context, shared exceptions.
 - `src/mcp_agent/app.py` — `MCPApp` container and `@app.workflow` decorator for workflow registration.
 - `src/mcp_agent/config.py` — Typed settings loader for project config (`mcp_agent.config.yaml`).
-- `src/mcp_agent/tools/` — Plain function-tools and adapters (e.g., CrewAI/LangChain wrappers) for agent registration.
+- `src/mcp_agent/tools/` — Framework adapters ONLY (crewai_tool.py, langchain_tool.py). **CRITICAL**: Do NOT place domain-specific tools here. Domain logic belongs in `src/mcp_agent/agents/<domain>/`. Agents access MCP servers via `Agent(server_names=[...])`, not via local function-tools.
+
 - `src/mcp_agent/telemetry/` — Usage tracking hooks.
 - `src/mcp_agent/logging/` — Structured logging, progress, transports.
 - `src/mcp_agent/tracing/` — Tracing, token counters, OTEL utilities.
@@ -36,9 +37,13 @@ The examples/ directory is strictly for learning patterns and verifying how to i
 
 ### Agents
 
-- Create under `src/mcp_agent/agents/<name>.py`.
+[Permalink: Agents](https://github.com/amitandale/mcp-agent/blob/main/agents.md#agents)
+
+- Create under `src/mcp_agent/agents/<domain>/<agent_name>_agent.py` for domain-specific agents, or `src/mcp_agent/agents/<agent_name>.py` for standalone agents.
+- **ALWAYS declare MCP server access via `server_names=[]` parameter, NOT as local function-tools**. Example: `Agent(name="analyzer", server_names=["github", "code-index"], ...)`.
 - Prefer config-driven: export `SPEC: AgentSpec` and `build(context: Context | None = None) -> Agent` using `mcp_agent.workflows.factory.create_agent`.
-- Optional (advanced/minimal): module-level `AGENT: Agent` for immediate, stateless agents.
+-  REFERENCE: See `src/mcp_agent/data/examples/workflows/workflow_deep_orchestrator/main.py` for multi-agent patterns with `server_names`.
+
 
 ### Workflows
 
@@ -52,12 +57,29 @@ The examples/ directory is strictly for learning patterns and verifying how to i
 
 ### MCP servers (remote tools)
 
-- Declare in `mcp_agent.config.yaml` under `mcp.servers`. Do not commit secrets. Use schema in `schema/mcp-agent.config.schema.json`.
+**Declare** in `mcp_agent.config.yaml` under `mcp.servers` with command and args (e.g., `command: "uvx", args: ["code-index-mcp"]`).
+**Access via agents** using `server_names=[]` parameter: `Agent(server_names=["github", "code-index"], ...)`.
+- Do NOT implement servers as local function-tools.
+- Do not commit secrets; use `mcp_agent.secrets.yaml` (gitignored). Schema: `schema/mcp-agent.config.schema.json`.
+- FERENCE: `src/mcp_agent/data/examples/workflows/workflow_router/main.py` shows agents accessing different server subsets.
+
+
 
 ### Configs
 
 - Keep production config at repo root (`mcp_agent.config.yaml`); example configs in `examples/**` are reference only.
-- 
+- MCP servers must be declared in config BEFORE agents can use them. Agents reference by name via `server_names=[]`.
+
+### Agent-to-Server Mapping Patterns
+**Rule: Each agent declares which MCP servers it needs via `server_names=[]`.**
+- Identify what external tools/APIs the agent needs.
+- Find corresponding MCP servers declared in `mcp_agent.config.yaml`.
+- Pass server names to agent: `Agent(name="code_analyzer", server_names=["code-index", "tree-sitter", "ast-grep", "github"], ...)`.
+
+**CRITICAL**: Each agent gets a SUBSET of servers appropriate for its role. Do NOT give every agent all servers.
+- REFERENCE: `src/mcp_agent/data/examples/workflows/workflow_deep_orchestrator/main.py` creates FileExpert, StyleChecker, Proofreader with different `server_names` subsets.
+
+
 ## Examples References
 
 ### How to use examples list:
