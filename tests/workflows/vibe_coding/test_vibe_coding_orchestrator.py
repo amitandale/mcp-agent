@@ -5,17 +5,25 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-SRC_ROOT = Path(__file__).resolve().parents[3] / "src"
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-
-from mcp_agent.core.context import Context
-from mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator import (
-    StageQueue,
-    StageStatus,
-    VibeCodingOrchestrator,
-    VibeCodingWorkflowConfig,
-)
+try:
+    from mcp_agent.core.context import Context
+    from mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator import (
+        StageQueue,
+        StageStatus,
+        VibeCodingOrchestrator,
+        VibeCodingWorkflowConfig,
+    )
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct test execution
+    SRC_ROOT = Path(__file__).resolve().parents[3] / "src"
+    if str(SRC_ROOT) not in sys.path:
+        sys.path.insert(0, str(SRC_ROOT))
+    from mcp_agent.core.context import Context
+    from mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator import (
+        StageQueue,
+        StageStatus,
+        VibeCodingOrchestrator,
+        VibeCodingWorkflowConfig,
+    )
 
 
 class FakeAgent:
