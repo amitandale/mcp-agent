@@ -1,0 +1,36 @@
+mcp:
+  servers:
+    github:
+      command: "npx"
+      args:
+        - "-y"
+        - "github-mcp-server"
+    code-index:
+      command: "uvx"
+      args:
+        - "code-index-mcp"
+    tree-sitter:
+      command: "uvx"
+      args:
+        - "mcp-server-tree-sitter"
+    ast-grep:
+      command: "uvx"
+      args:
+        - "ast-grep-mcp"
+    dependency-management:
+      command: "uvx"
+      args:
+        - "dependency-management-mcp-server"
+    sourcerer:
+      command: "uvx"
+      args:
+        - "sourcerer-mcp"
+    lsp:
+      command: "uvx"
+      args:
+        - "lsp-mcp"
+    filesystem:
+      command: "npx"
+      args:
+        - "-y"
+        - "@modelcontextprotocol/server-filesystem"
