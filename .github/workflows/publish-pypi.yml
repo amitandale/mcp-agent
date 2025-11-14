@@ -13,7 +13,7 @@ jobs:
 
   publish:
     name: Build and publish package to PyPI
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [checks] # Run checks before publishing
 
     # This ties the job to a protected environment.
