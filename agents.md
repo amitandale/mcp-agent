@@ -57,3 +57,261 @@ The examples/ directory is strictly for learning patterns and verifying how to i
 ### Configs
 
 - Keep production config at repo root (`mcp_agent.config.yaml`); example configs in `examples/**` are reference only.
+- 
+## Examples References
+
+### How to use examples list:
+
+Start from the primary category that matches the PR scope:
+
+- **Agents** → see "Basic/Hello or Use-case agents" and provider-specific under "LLM Providers."
+- **Workflows** → see "Orchestration/Factory/Parallel/Router," plus "Temporal & Workers" when background workers/clients are relevant.
+- **MCP Tools** → client usage and transports for interacting with servers (SSE, WebSockets, HTTP, roots, prompts/resources).
+- **Local Tools & Adapters** → authoring simple Python function-tools or using CrewAI/LangChain.
+- **LLM Providers** → provider basics and utilities for selection/token accounting/intent.
+
+If your change touches servers, OAuth, tracing, human input, or app demos, jump to the dedicated categories above for patterns before implementing production code under src/mcp_agent/**. Include both top-level examples/ and embedded examples under src/mcp_agent/data/examples/ so Codex has full coverage.
+
+### Agents
+
+#### Basic/Hello or Use-case agents
+
+- `mcp-agent-main/examples/basic/mcp_basic_agent/main.py` — Display comprehensive token usage summary using app/agent convenience APIs.
+- `mcp-agent-main/examples/basic/mcp_hello_world/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/cloud/hello_world/main.py` — import asyncio
+- `mcp-agent-main/examples/usecases/marimo_mcp_basic_agent/notebook.py` — # 💬 Basic agent chatbot
+- `mcp-agent-main/examples/usecases/mcp_basic_slack_agent/main.py` — Get the latest message from general channel and provide a summary.
+- `mcp-agent-main/examples/usecases/mcp_browser_agent/main.py` — Use case: mcp_browser_agent
+- `mcp-agent-main/examples/usecases/mcp_financial_analyzer/main.py` — Use case: mcp_financial_analyzer
+- `mcp-agent-main/examples/usecases/mcp_github_to_slack/main.py` — Use case: mcp_github_to_slack
+- `mcp-agent-main/examples/usecases/mcp_instagram_agent/main.py` — Use case: mcp_instagram_agent
+- `mcp-agent-main/examples/usecases/mcp_marketing_agent/main.py` — Use case: mcp_marketing_agent
+- `mcp-agent-main/examples/usecases/mcp_playwright_agent/main.py` — Use case: mcp_playwright_agent
+- `mcp-agent-main/examples/usecases/mcp_realtor_agent/main.py` — Use case: mcp_realtor_agent
+- `mcp-agent-main/examples/usecases/mcp_researcher/main.py` — Use case: mcp_researcher
+- `mcp-agent-main/examples/usecases/mcp_slack_agent/main.py` — Use case: mcp_slack_agent
+- `mcp-agent-main/examples/usecases/mcp_streamlit_basic_agent/main.py` — Use case: mcp_streamlit_basic_agent
+- `mcp-agent-main/examples/usecases/mcp_streamlit_rag_agent/agent_state.py` — Use case: mcp_streamlit_rag_agent
+- `mcp-agent-main/examples/usecases/mcp_streamlit_rag_agent/main.py` — Use case: mcp_streamlit_rag_agent
+- `mcp-agent-main/examples/basic/oauth_basic_agent/main.py` — OAuth integration demo
+
+### Workflows
+
+#### Orchestration/Factory/Parallel/Router
+
+- `mcp-agent-main/examples/basic/agent_factory/auto_loaded_subagents.py` — Example
+- `mcp-agent-main/examples/basic/agent_factory/load_and_route.py` — Example
+- `mcp-agent-main/examples/basic/agent_factory/main.py` — Route a prompt to the appropriate agent using an LLMRouter.
+- `mcp-agent-main/examples/basic/agent_factory/orchestrator_demo.py` — Orchestrator pattern demo
+- `mcp-agent-main/examples/basic/agent_factory/parallel_demo.py` — Parallel orchestration demo
+- `mcp-agent-main/examples/cloud/agent_factory/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_deep_orchestrator/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_evaluator_optimizer/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_intent_classifier/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_orchestrator_worker/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_parallel/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_router/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_swarm/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/temporal/main.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/temporal/router.py` — Routing/selection demo
+- `mcp-agent-main/examples/temporal/parallel.py` — Parallel orchestration demo
+- `mcp-agent-main/examples/temporal/orchestrator.py` — Orchestrator pattern demo
+- `mcp-agent-main/examples/temporal/evaluator_optimizer.py` — Orchestrator pattern demo
+- `mcp-agent-main/examples/temporal/interactive.py` — Interactive CLI example
+- `mcp-agent-main/examples/temporal/basic.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/temporal/workflows.py` — Example
+- `mcp-agent-main/examples/cloud/temporal/main.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/human_input/temporal/main.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/mcp/mcp_elicitation/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp/mcp_elicitation/cloud/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp/mcp_prompts_and_resources/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp/mcp_roots/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp/mcp_sse/main.py` — Server-Sent Events transport demo
+- `mcp-agent-main/examples/mcp/mcp_sse_with_headers/main.py` — Server-Sent Events transport demo
+- `mcp-agent-main/examples/mcp/mcp_streamable_http/main.py` — Streamable HTTP transport demo
+- `mcp-agent-main/examples/mcp/mcp_websockets/main.py` — WebSockets transport demo
+- `mcp-agent-main/examples/basic/mcp_server_aggregator/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/basic/mcp_tool_filter/main.py` — Tool selection/filtering
+- `mcp-agent-main/examples/basic/mcp_tool_filter/quickstart.py` — Main example entrypoint
+- `mcp-agent-main/examples/cloud/mcp/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/cloud/observability/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/usecases/reliable_conversation/main.py` — Use case: reliable_conversation
+- `mcp-agent-main/examples/usecases/reliable_conversation/workflows.py` — Example
+- `mcp-agent-main/examples/usecases/reliable_conversation/basic.py` — Temporal workflow/client/worker example
+
+#### Temporal & Workers (Workers/Clients/Entrypoints)
+
+- `mcp-agent-main/examples/basic/agent_factory/run_worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/cloud/agent_factory/run_worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/cloud/temporal/temporal_worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/human_input/temporal/client.py` — Client example
+- `mcp-agent-main/examples/human_input/temporal/worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/mcp/mcp_elicitation/temporal/client.py` — Client example
+- `mcp-agent-main/examples/mcp/mcp_elicitation/temporal/main.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/mcp/mcp_elicitation/temporal/worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/temporal/run_worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/tracing/temporal/basic.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/tracing/temporal/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/tracing/temporal/workflows.py` — Example
+- `mcp-agent-main/examples/tracing/temporal/run_worker.py` — Worker entrypoint
+
+### MCP Tools
+
+#### Client usage & transports
+
+- `mcp-agent-main/examples/basic/mcp_model_selector/main.py` — Model selection workflow
+- `mcp-agent-main/examples/basic/mcp_model_selector/interactive.py` — Interactive CLI example
+- `mcp-agent-main/examples/basic/token_counter/main.py` — Token counting utility
+- `mcp-agent-main/examples/basic/mcp_server_aggregator/main.py` — MCP server aggregator usage
+- `mcp-agent-main/examples/basic/mcp_tool_filter/main.py` — Tool selection/filtering
+- `mcp-agent-main/examples/basic/mcp_tool_filter/quickstart.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp/mcp_prompts_and_resources/main.py` — MCP prompts/resources API
+- `mcp-agent-main/examples/mcp/mcp_roots/main.py` — MCP roots discovery
+- `mcp-agent-main/examples/mcp/mcp_sse/main.py` — Server-Sent Events transport demo
+- `mcp-agent-main/examples/mcp/mcp_sse_with_headers/main.py` — Server-Sent Events transport demo
+- `mcp-agent-main/examples/mcp/mcp_streamable_http/main.py` — Streamable HTTP transport demo
+- `mcp-agent-main/examples/mcp/mcp_websockets/main.py` — WebSockets transport demo
+
+### Local Tools & Adapters
+
+#### Function tools & 3rd-party adapters
+
+- `mcp-agent-main/examples/basic/functions/main.py` — Local function-tool demo
+- `mcp-agent-main/examples/crewai/main.py` — CrewAI tool adapter usage
+- `mcp-agent-main/examples/langchain/main.py` — LangChain tool adapter usage
+- `mcp-agent-main/examples/multithread/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/multithread/word_count.py` — Local function-tool demo
+
+### LLM Providers
+
+#### Selection/Token/Intent utilities
+
+- `mcp-agent-main/examples/basic/mcp_model_selector/main.py` — Model selection workflow
+- `mcp-agent-main/examples/basic/mcp_model_selector/interactive.py` — Interactive CLI example
+- `mcp-agent-main/examples/basic/token_counter/main.py` — Token counting utility
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_evaluator_optimizer/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/workflows/workflow_intent_classifier/main.py` — Main example entrypoint
+
+#### Basic provider agent
+
+- `mcp-agent-main/examples/model_providers/mcp_basic_azure_agent/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/model_providers/mcp_basic_bedrock_agent/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/model_providers/mcp_basic_google_agent/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/model_providers/mcp_basic_ollama_agent/main.py` — Main example entrypoint
+
+### MCP Servers (server-side demos & adapters)
+
+- `mcp-agent-main/examples/mcp/mcp_elicitation/demo_server.py` — Server demo
+- `mcp-agent-main/examples/mcp/mcp_prompts_and_resources/demo_server.py` — Server demo
+- `mcp-agent-main/examples/mcp/mcp_roots/root_test_server.py` — Server demo
+- `mcp-agent-main/examples/mcp/mcp_sse/server.py` — Server demo
+- `mcp-agent-main/examples/mcp/mcp_streamable_http/stateless_server.py` — Server demo
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/client.py` — Client example
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/nested_elicitation_server.py` — Server demo
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/prompts_resources_client.py` — Client example
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/prompts_resources_server.py` — Server demo
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/roots_client.py` — Client example
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/roots_server.py` — Server demo
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/sse_telemetry_client.py` — Client example
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/sse_telemetry_server.py` — Server demo
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/streamable_http_client.py` — Client example
+- `mcp-agent-main/examples/mcp_agent_server/asyncio/streamable_http_server.py` — Server demo
+- `mcp-agent-main/examples/mcp_agent_server/context_isolation/server.py` — Server demo
+- `mcp-agent-main/examples/mcp_agent_server/context_isolation/clients.py` — Client example
+- `mcp-agent-main/examples/mcp_agent_server/temporal/basic_agent_server_worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/mcp_agent_server/temporal/client.py` — Client example
+- `mcp-agent-main/examples/mcp_agent_server/temporal/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp_agent_server/temporal/workflows.py` — Example
+- `mcp-agent-main/src/mcp_agent/data/examples/mcp_agent_server/elicitation/server.py` — Server demo
+- `mcp-agent-main/src/mcp_agent/data/examples/mcp_agent_server/notifications/client.py` — Client example
+- `mcp-agent-main/src/mcp_agent/data/examples/mcp_agent_server/notifications/server.py` — Server demo
+- `mcp-agent-main/src/mcp_agent/data/examples/mcp_agent_server/reference/client.py` — Client example
+- `mcp-agent-main/src/mcp_agent/data/examples/mcp_agent_server/reference/server.py` — Server demo
+- `mcp-agent-main/src/mcp_agent/data/examples/mcp_agent_server/sampling/client.py` — Client example
+- `mcp-agent-main/src/mcp_agent/data/examples/mcp_agent_server/sampling/server.py` — Server demo
+
+### Security & OAuth
+
+- `mcp-agent-main/examples/basic/oauth_basic_agent/main.py` — OAuth integration demo
+- `mcp-agent-main/examples/oauth/interactive_tool/client.py` — Client example
+- `mcp-agent-main/examples/oauth/interactive_tool/server.py` — Server demo
+- `mcp-agent-main/examples/oauth/pre_authorize/client.py` — Client example
+- `mcp-agent-main/examples/oauth/pre_authorize/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/oauth/pre_authorize/worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/oauth/protected_by_oauth/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/oauth/protected_by_oauth/registration.py` — Server demo
+
+### Observability & Tracing
+
+- `mcp-agent-main/examples/cloud/observability/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/tracing/agent/main.py` — Example
+- `mcp-agent-main/examples/tracing/langfuse/main.py` — Observability/Tracing demo
+- `mcp-agent-main/examples/tracing/llm/main.py` — Observability/Tracing demo
+- `mcp-agent-main/examples/tracing/mcp/main.py` — Observability/Tracing demo
+- `mcp-agent-main/examples/tracing/mcp/server.py` — Server demo
+- `mcp-agent-main/examples/tracing/temporal/basic.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/tracing/temporal/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/tracing/temporal/workflows.py` — Example
+- `mcp-agent-main/examples/tracing/temporal/run_worker.py` — Worker entrypoint
+
+### Human-in-the-Loop
+
+- `mcp-agent-main/examples/human_input/temporal/client.py` — Client example
+- `mcp-agent-main/examples/human_input/temporal/main.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/human_input/temporal/worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/mcp/mcp_elicitation/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp/mcp_elicitation/cloud/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/mcp/mcp_elicitation/temporal/client.py` — Client example
+- `mcp-agent-main/examples/mcp/mcp_elicitation/temporal/main.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/mcp/mcp_elicitation/temporal/worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/mcp/mcp_elicitation/demo_server.py` — Server demo
+
+### Apps & Demos
+
+- `mcp-agent-main/examples/cloud/chatgpt_apps/basic_app/main.py` — ChatGPT App example
+- `mcp-agent-main/examples/cloud/chatgpt_apps/timer/main.py` — ChatGPT App example
+
+### Use Cases (domain demos)
+
+- `mcp-agent-main/examples/usecases/fastapi_websocket/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/usecases/fastapi_websocket/session_manager.py` — Example
+- `mcp-agent-main/examples/usecases/fastapi_websocket/websocket_client_async.py` — Client example
+- `mcp-agent-main/examples/usecases/marimo_mcp_basic_agent/notebook.py` — # 💬 Basic agent chatbot
+- `mcp-agent-main/examples/usecases/mcp_basic_slack_agent/main.py` — Get the latest message from general channel and provide a summary.
+- `mcp-agent-main/examples/usecases/mcp_browser_agent/main.py` — Use case: mcp_browser_agent
+- `mcp-agent-main/examples/usecases/mcp_financial_analyzer/main.py` — Use case: mcp_financial_analyzer
+- `mcp-agent-main/examples/usecases/mcp_github_to_slack/main.py` — Use case: mcp_github_to_slack
+- `mcp-agent-main/examples/usecases/mcp_instagram_agent/main.py` — Use case: mcp_instagram_agent
+- `mcp-agent-main/examples/usecases/mcp_marketing_agent/main.py` — Use case: mcp_marketing_agent
+- `mcp-agent-main/examples/usecases/mcp_playwright_agent/main.py` — Use case: mcp_playwright_agent
+- `mcp-agent-main/examples/usecases/mcp_realtor_agent/main.py` — Use case: mcp_realtor_agent
+- `mcp-agent-main/examples/usecases/mcp_researcher/main.py` — Use case: mcp_researcher
+- `mcp-agent-main/examples/usecases/mcp_slack_agent/main.py` — Use case: mcp_slack_agent
+- `mcp-agent-main/examples/usecases/mcp_streamlit_basic_agent/main.py` — Use case: mcp_streamlit_basic_agent
+- `mcp-agent-main/examples/usecases/mcp_streamlit_rag_agent/agent_state.py` — Use case: mcp_streamlit_rag_agent
+- `mcp-agent-main/examples/usecases/mcp_streamlit_rag_agent/main.py` — Use case: mcp_streamlit_rag_agent
+- `mcp-agent-main/examples/usecases/reliable_conversation/basic.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/usecases/reliable_conversation/main.py` — Use case: reliable_conversation
+- `mcp-agent-main/examples/usecases/reliable_conversation/workflows.py` — Example
+- `mcp-agent-main/src/mcp_agent/data/examples/usecases/mcp_financial_analyzer/main.py` — Main example entrypoint
+- `mcp-agent-main/src/mcp_agent/data/examples/usecases/mcp_researcher/main.py` — Main example entrypoint
+
+### Cloud (cloud-oriented examples)
+
+- `mcp-agent-main/examples/cloud/agent_factory/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/cloud/agent_factory/run_worker.py` — Worker entrypoint
+- `mcp-agent-main/examples/cloud/chatgpt_apps/basic_app/main.py` — ChatGPT App example
+- `mcp-agent-main/examples/cloud/chatgpt_apps/timer/main.py` — ChatGPT App example
+- `mcp-agent-main/examples/cloud/hello_world/main.py` — import asyncio
+- `mcp-agent-main/examples/cloud/mcp/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/cloud/observability/main.py` — Main example entrypoint
+- `mcp-agent-main/examples/cloud/temporal/main.py` — Temporal workflow/client/worker example
+- `mcp-agent-main/examples/cloud/temporal/temporal_worker.py` — Worker entrypoint
+
+### Additional "Misc/Uncategorized" (very small helper entries that didn't match above heuristics)
+
+- `mcp-agent-main/examples/tracing/agent/main.py` — Example
+- `mcp-agent-main/examples/temporal/workflows.py` — Example
+- `mcp-agent-main/examples/mcp_agent_server/temporal/workflows.py` — Example
+
