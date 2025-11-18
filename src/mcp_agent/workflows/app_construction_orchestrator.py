@@ -12,6 +12,32 @@ from pydantic import BaseModel, Field, PrivateAttr
 
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.app_construction.planning_agent import (
+    PlanningResult,
+    generate_plan,
+)
+from mcp_agent.agents.app_construction.pr_generation_agent import (
+    BlueprintResult,
+    PullRequestBlueprint,
+    generate_blueprints,
+)
+from mcp_agent.agents.app_construction.repo_commit_agent import (
+    CommitSummary,
+    summarize_commits,
+)
+from mcp_agent.agents.app_construction.repo_initializer_agent import (
+    RepoInitializationRequest,
+    RepoInitializationResult,
+    initialize_repo,
+)
+from mcp_agent.agents.app_construction.spec_parser_agent import (
+    SpecParserResult,
+    parse_spec,
+)
+from mcp_agent.agents.app_construction.validation_agent import (
+    ValidationResult,
+    validate_workspace,
+)
 from mcp_agent.config import AppConstructionWorkflowSettings, Settings
 from mcp_agent.core.context import Context
 from mcp_agent.executor.workflow import Workflow, WorkflowResult
@@ -214,6 +240,7 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         super().__init__(name="app_construction_orchestrator", context=context, **kwargs)
         self.config = resolved_config
         self._agent_cache: Dict[str, Agent] = {}
+        self._object_store: Dict[str, Any] = {}
         self._stage_states: Dict[str, StageState] = {
             stage.name: StageState(name=stage.name)
             for stage in self.config.stages
@@ -295,7 +322,7 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
             value={
                 "stages": {name: payload.model_dump() for name, payload in stage_payloads.items()},
                 "summary": self._summarize(stage_payloads),
-                "shared_state": dict(shared_state),
+                "shared_state": self._public_state(shared_state),
             },
             metadata={"stages": self.state.metadata["stages"]},
             start_time=start,
@@ -324,19 +351,20 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         repo_template = stage.parameters.get("repo_template") or shared_state.get(
             "repo_template"
         )
-        target_branch = stage.parameters.get("target_branch", self.config.target_branch)
-        workspace = {
-            "repo_name": repo_name,
-            "template": repo_template,
-            "branch": target_branch,
-            "status": "initialized",
-        }
-        shared_state["workspace"] = workspace
+        request = RepoInitializationRequest(
+            repo_name=repo_name,
+            target_branch=shared_state.get("target_branch", self.config.target_branch),
+            repo_template=repo_template,
+            destination_root=stage.parameters.get("destination_root"),
+        )
+        result = await initialize_repo(request, context=self.context)
+        shared_state["workspace"] = result.model_dump()
+        self._object_store["workspace"] = result
         return StageResult(
             stage=stage.name,
             agent=stage.agent,
-            summary=f"Repository {repo_name} prepared on branch {target_branch}.",
-            outputs={"workspace": workspace},
+            summary=f"Repository {repo_name} prepared at {result.workspace_path}.",
+            outputs=result.model_dump(),
         )
 
     async def _handle_spec_analysis(
@@ -344,22 +372,26 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         stage: AppConstructionStageDefinition,
         shared_state: MutableMapping[str, Any],
     ) -> StageResult:
-        path = Path(
+        spec_path = (
             stage.parameters.get("system_spec_path")
             or shared_state.get("system_spec_path")
             or self.config.system_spec_path
         )
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        text = path.read_text(encoding="utf-8")
-        sections = self._parse_sections(text)
-        payload = {"path": str(path), "sections": sections, "raw": text}
-        shared_state["spec_analysis"] = payload
+        workspace: RepoInitializationResult | None = self._object_store.get("workspace")
+        if workspace is None:
+            raise RuntimeError("Workspace must be initialized before spec analysis")
+        result = await parse_spec(
+            spec_path=str(spec_path),
+            workspace_path=workspace.workspace_path,
+            context=self.context,
+        )
+        shared_state["spec_analysis"] = result.model_dump()
+        self._object_store["spec"] = result
         return StageResult(
             stage=stage.name,
             agent=stage.agent,
-            summary=f"Parsed {len(sections)} sections from system description.",
-            outputs=payload,
+            summary=f"Parsed {len(result.sections)} sections from system description.",
+            outputs=result.model_dump(),
         )
 
     async def _handle_planning(
@@ -367,27 +399,17 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         stage: AppConstructionStageDefinition,
         shared_state: MutableMapping[str, Any],
     ) -> StageResult:
-        analysis = shared_state.get("spec_analysis", {})
-        sections = analysis.get("sections", [])
-        plan: List[Dict[str, Any]] = []
-        for section in sections:
-            for item in section.get("items", []):
-                artifacts = ["api"]
-                if "UI" in section["title"].upper() or "DASHBOARD" in section["title"].upper():
-                    artifacts.append("ui")
-                plan.append(
-                    {
-                        "section": section["title"],
-                        "task": item,
-                        "artifacts": artifacts,
-                    }
-                )
-        shared_state["plan"] = plan
+        spec: SpecParserResult | None = self._object_store.get("spec")
+        if spec is None:
+            raise RuntimeError("Spec analysis must run before planning")
+        plan_result = await generate_plan(spec, context=self.context)
+        shared_state["plan"] = plan_result.model_dump()
+        self._object_store["plan"] = plan_result
         return StageResult(
             stage=stage.name,
             agent=stage.agent,
-            summary=f"Created {len(plan)} execution tasks.",
-            outputs={"plan": plan},
+            summary=f"Created {len(plan_result.tasks)} execution tasks.",
+            outputs={"plan": plan_result.model_dump()},
         )
 
     async def _handle_pr_blueprinting(
@@ -395,28 +417,31 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         stage: AppConstructionStageDefinition,
         shared_state: MutableMapping[str, Any],
     ) -> StageResult:
-        plan: List[Dict[str, Any]] = shared_state.get("plan", [])
+        plan: PlanningResult | None = self._object_store.get("plan")
+        if plan is None:
+            raise RuntimeError("Plan must be prepared before blueprinting")
         limit = stage.parameters.get("max_pull_requests")
-        slice_plan = plan[:limit] if limit else plan
-        blueprints: List[Dict[str, Any]] = []
-        for idx, task in enumerate(slice_plan, start=1):
-            branch = f"{self.config.target_branch}-{idx:02d}"
-            pr_url = f"https://example.com/{branch}"
-            blueprint = {
-                "id": idx,
-                "title": f"Implement {task['task']}",
-                "branch": branch,
-                "files": task.get("artifacts", []),
-                "plan_reference": task,
-                "pr_url": pr_url,
-            }
-            blueprints.append(blueprint)
-        shared_state["pull_requests"] = blueprints
+        if limit:
+            limited_plan = PlanningResult(
+                tasks=plan.tasks[:limit],
+                coverage=plan.coverage,
+            )
+        else:
+            limited_plan = plan
+        blueprints = await generate_blueprints(
+            limited_plan,
+            target_branch=self.config.target_branch,
+            context=self.context,
+        )
+        shared_state["pull_requests"] = [
+            blueprint.model_dump() for blueprint in blueprints.blueprints
+        ]
+        self._object_store["blueprints"] = blueprints
         return StageResult(
             stage=stage.name,
             agent=stage.agent,
-            summary=f"Prepared {len(blueprints)} PR blueprints.",
-            outputs={"pull_requests": blueprints},
+            summary=f"Prepared {len(blueprints.blueprints)} PR blueprints.",
+            outputs={"pull_requests": shared_state["pull_requests"]},
         )
 
     async def _handle_implementation(
@@ -424,10 +449,14 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         stage: AppConstructionStageDefinition,
         shared_state: MutableMapping[str, Any],
     ) -> StageResult:
-        blueprints = shared_state.get("pull_requests", [])
+        blueprint_objects = self._object_store.get("blueprints")
+        if isinstance(blueprint_objects, BlueprintResult):
+            blueprints = blueprint_objects.blueprints
+        else:
+            blueprints = [PullRequestBlueprint(**bp) for bp in shared_state.get("pull_requests", [])]
         implementations: List[Dict[str, Any]] = []
         for blueprint in blueprints:
-            vibe_result = await self._invoke_vibe_coding(blueprint)
+            vibe_result = await self._invoke_vibe_coding(blueprint.model_dump())
             implementations.append(vibe_result)
         shared_state["implementations"] = implementations
         return StageResult(
@@ -443,23 +472,21 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         shared_state: MutableMapping[str, Any],
     ) -> StageResult:
         implementations: List[Dict[str, Any]] = shared_state.get("implementations", [])
-        failures = [
-            impl
-            for impl in implementations
-            if not impl.get("result", {}).get("summary")
-        ]
-        status = "passed" if not failures else "needs_revision"
-        validation = {
-            "status": status,
-            "checked": len(implementations),
-            "failures": failures,
-        }
-        shared_state["validation"] = validation
+        workspace: RepoInitializationResult | None = self._object_store.get("workspace")
+        if workspace is None:
+            raise RuntimeError("Workspace missing for validation stage")
+        result = await validate_workspace(
+            workspace_path=workspace.workspace_path,
+            implementations=implementations,
+            context=self.context,
+        )
+        shared_state["validation"] = result.model_dump()
+        self._object_store["validation"] = result
         return StageResult(
             stage=stage.name,
             agent=stage.agent,
-            summary=f"Validation {status} with {len(failures)} failures.",
-            outputs=validation,
+            summary=f"Validation {result.status} with {len(result.issues)} issues.",
+            outputs=result.model_dump(),
         )
 
     async def _handle_commit(
@@ -467,37 +494,26 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
         stage: AppConstructionStageDefinition,
         shared_state: MutableMapping[str, Any],
     ) -> StageResult:
-        workspace = shared_state.get("workspace", {})
-        validation = shared_state.get("validation", {})
-        commit = {
-            "branch": workspace.get("branch", self.config.target_branch),
-            "ready_for_ci": validation.get("status") == "passed",
-            "pr_count": len(shared_state.get("pull_requests", [])),
-        }
-        shared_state["commit"] = commit
+        workspace: RepoInitializationResult | None = self._object_store.get("workspace")
+        validation: ValidationResult | None = self._object_store.get("validation")
+        if workspace is None or validation is None:
+            raise RuntimeError("Workspace and validation are required before commit stage")
+        summary = await summarize_commits(
+            workspace_path=workspace.workspace_path,
+            branch=workspace.branch,
+            validation_passed=validation.status == "passed",
+            context=self.context,
+        )
+        shared_state["commit"] = summary.model_dump()
         return StageResult(
             stage=stage.name,
             agent=stage.agent,
             summary=(
                 "Staged commits for branch "
-                f"{commit['branch']} (ready_for_ci={commit['ready_for_ci']})."
+                f"{summary.branch} (ready_for_ci={summary.ready_for_ci})."
             ),
-            outputs=commit,
+            outputs=summary.model_dump(),
         )
-
-    def _parse_sections(self, text: str) -> List[Dict[str, Any]]:
-        sections: List[Dict[str, Any]] = []
-        current: Dict[str, Any] | None = None
-        for line in text.splitlines():
-            if line.startswith("## "):
-                if current:
-                    sections.append(current)
-                current = {"title": line[3:].strip(), "items": []}
-            elif line.startswith("- ") and current is not None:
-                current["items"].append(line[2:].strip())
-        if current:
-            sections.append(current)
-        return sections
 
     async def _invoke_vibe_coding(
         self, blueprint: Mapping[str, Any]
@@ -540,6 +556,17 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
     def _summarize(self, stages: Mapping[str, StageResult]) -> str:
         summaries = [result.summary for result in stages.values()]
         return ", ".join(summaries)
+
+    def _public_state(self, state: MutableMapping[str, Any]) -> Dict[str, Any]:
+        public: Dict[str, Any] = {}
+        for key, value in state.items():
+            if key.startswith("_"):
+                continue
+            if isinstance(value, BaseModel):
+                public[key] = value.model_dump()
+            else:
+                public[key] = value
+        return public
 
 
 app = MCPApp(name="app_construction_orchestrator")
