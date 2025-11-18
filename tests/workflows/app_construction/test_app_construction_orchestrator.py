@@ -6,7 +6,7 @@ import pytest
 from mcp_agent.config import AppConstructionWorkflowSettings, Settings
 from mcp_agent.core.context import Context
 from mcp_agent.executor.workflow import WorkflowResult
-from mcp_agent.workflows.app_construction_orchestrator import (
+from mcp_agent.workflows.app_construction import (
     AppConstructionOrchestrator,
     AppConstructionWorkflowConfig,
 )
