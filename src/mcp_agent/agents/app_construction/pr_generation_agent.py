@@ -24,6 +24,15 @@ SPEC = AgentSpec(
 )
 
 
+class BlueprintArtifact(BaseModel):
+    """Concrete artifact that needs to change in a PR."""
+
+    path: str
+    rationale: str
+    change_type: str = "modify"
+    context: str | None = None
+
+
 class PullRequestBlueprint(BaseModel):
     """Structured PR description consumed by vibe_coding."""
 
@@ -31,6 +40,7 @@ class PullRequestBlueprint(BaseModel):
     title: str
     branch: str
     description: str
+    artifacts: List[BlueprintArtifact] = Field(default_factory=list)
     files: List[str] = Field(default_factory=list)
     tests: List[str] = Field(default_factory=list)
     plan_reference: PlanTask
@@ -65,12 +75,31 @@ async def generate_blueprints(
     blueprints: list[PullRequestBlueprint] = []
     for index, task in enumerate(plan.tasks, start=1):
         branch = f"{target_branch}-{index:02d}-{task.kind}"
+        artifacts = [
+            BlueprintArtifact(
+                path=artifact,
+                rationale=f"Implements plan task '{task.identifier}'",
+                change_type="modify",
+                context=task.task,
+            )
+            for artifact in (task.artifacts or [])
+        ]
+        if not artifacts:
+            artifacts.append(
+                BlueprintArtifact(
+                    path=f"unmapped/{task.entity.lower().replace(' ', '_')}.txt",
+                    rationale=f"Placeholder artifact for {task.entity}",
+                    change_type="add",
+                    context=task.task,
+                )
+            )
         blueprint = PullRequestBlueprint(
             identifier=task.identifier,
             title=f"{task.kind.title()}: {task.entity}",
             branch=branch,
             description=_render_description(task),
-            files=task.artifacts,
+            artifacts=artifacts,
+            files=[artifact.path for artifact in artifacts],
             tests=task.tests,
             plan_reference=task,
             pr_url=f"https://example.com/{branch}",
@@ -88,6 +117,7 @@ def build(context: Context | None = None) -> Agent:
 __all__ = [
     "SPEC",
     "build",
+    "BlueprintArtifact",
     "PullRequestBlueprint",
     "BlueprintResult",
     "generate_blueprints",

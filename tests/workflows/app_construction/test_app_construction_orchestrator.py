@@ -33,16 +33,25 @@ def mock_context() -> Context:
 
 class FakeVibeWorkflow:
     def __init__(self) -> None:
-        self.calls: list[str | None] = []
+        self.blueprints: list[dict | None] = []
+        self.pr_urls: list[str | None] = []
 
-    async def run(self, pr_url: str | None = None) -> WorkflowResult[dict]:
-        self.calls.append(pr_url)
-        return WorkflowResult(value={"summary": f"handled {pr_url}"})
+    async def run(
+        self, pr_blueprint: dict | None = None, pr_url: str | None = None
+    ) -> WorkflowResult[dict]:
+        self.blueprints.append(pr_blueprint)
+        self.pr_urls.append(pr_url)
+        summary = pr_blueprint.get("identifier") if pr_blueprint else pr_url
+        return WorkflowResult(value={"summary": f"handled {summary}"})
 
 
 def test_orchestrator_executes_all_stages(workflow_config, mock_context):
+    captured: list[FakeVibeWorkflow] = []
+
     async def fake_builder(_context, blueprint):
         workflow = FakeVibeWorkflow()
+        captured.append(workflow)
+        assert blueprint["files"], "blueprint should include target files"
         return workflow
 
     async def _execute():
@@ -60,6 +69,8 @@ def test_orchestrator_executes_all_stages(workflow_config, mock_context):
     assert result.value["summary"].startswith("Repository"), "summary should include bootstrap"
     impl = result.value["stages"]["feature_implementation"]["outputs"]
     assert impl["implementations"], "implementations should be recorded"
+    assert captured, "vibe_coding builder should be invoked"
+    assert captured[0].blueprints[0]["identifier"].startswith("task"), "blueprint id propagated"
 
 
 def test_config_contains_pipeline(workflow_config):

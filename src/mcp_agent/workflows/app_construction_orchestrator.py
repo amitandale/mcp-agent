@@ -450,9 +450,12 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
             blueprints = blueprint_objects.blueprints
         else:
             blueprints = [PullRequestBlueprint(**bp) for bp in shared_state.get("pull_requests", [])]
+        if not blueprints:
+            raise RuntimeError("No PR blueprints available for implementation stage")
         implementations: List[Dict[str, Any]] = []
         for blueprint in blueprints:
-            vibe_result = await self._invoke_vibe_coding(blueprint.model_dump())
+            serialized = blueprint.model_dump(mode="json")
+            vibe_result = await self._invoke_vibe_coding(serialized)
             implementations.append(vibe_result)
         shared_state["implementations"] = implementations
         return StageResult(
@@ -514,14 +517,27 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
     async def _invoke_vibe_coding(
         self, blueprint: Mapping[str, Any]
     ) -> Dict[str, Any]:
+        required_fields = ("identifier", "branch", "title", "description", "files", "tests")
+        missing = [field for field in required_fields if not blueprint.get(field)]
+        if missing:
+            raise ValueError(
+                "Blueprint is missing required fields for VibeCoding: " + ", ".join(missing)
+            )
+        files = blueprint.get("files")
+        if not isinstance(files, list) or not files:
+            raise ValueError("Blueprint must include at least one file target for VibeCoding")
         workflow_obj = await self._vibe_workflow_builder(self.context, blueprint)
         monitor = None
         if isinstance(workflow_obj, Workflow):
             await workflow_obj.initialize()
-            workflow_result = await workflow_obj.run(pr_url=blueprint.get("pr_url"))
+            workflow_result = await workflow_obj.run(
+                pr_blueprint=blueprint, pr_url=blueprint.get("pr_url")
+            )
             monitor = self.config.vibe_monitor_class(workflow_obj)
         elif hasattr(workflow_obj, "run"):
-            workflow_result = await workflow_obj.run(pr_url=blueprint.get("pr_url"))
+            workflow_result = await workflow_obj.run(
+                pr_blueprint=blueprint, pr_url=blueprint.get("pr_url")
+            )
         else:
             workflow_result = workflow_obj
 
@@ -542,7 +558,6 @@ class AppConstructionOrchestrator(Workflow[Dict[str, Any]]):
     async def _default_vibe_workflow_builder(
         self, context: Context | None, blueprint: Mapping[str, Any]
     ) -> VibeCodingOrchestrator:
-        del blueprint  # currently unused but kept for future filtering
         vibe_config = VibeCodingWorkflowConfig.default()
         vibe_config.monitor_refresh_interval = 0
         return await self.config.vibe_workflow_class.create(

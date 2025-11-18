@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, Iterable, List, Mapping
+from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping
 
 from pydantic import BaseModel, Field
 
@@ -372,6 +372,7 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
         }
         self._observers: List[Callable[[Dict[str, Any]], None]] = []
         self.queue = StageQueue(self.config.stages)
+        self._active_blueprint: Mapping[str, Any] | None = None
 
         self.state.metadata.setdefault("stages", {})
         self.state.metadata.setdefault("budget", {})
@@ -425,9 +426,18 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
         for callback in self._observers:
             callback(snapshot)
 
-    async def run(self, pr_url: str | None = None, **_: Any) -> WorkflowResult[Dict[str, Any]]:
+    async def run(
+        self,
+        *,
+        pr_blueprint: Mapping[str, Any] | None = None,
+        pr_url: str | None = None,
+        **_: Any,
+    ) -> WorkflowResult[Dict[str, Any]]:
         """Execute the full 15-stage workflow."""
 
+        blueprint_payload = self._prepare_blueprint(pr_blueprint, pr_url)
+        self._active_blueprint = blueprint_payload
+        pr_url = blueprint_payload.get("pr_url")
         self.update_status("running")
         stage_results: Dict[str, StageReport] = {}
         completed: List[str] = []
@@ -455,7 +465,10 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
 
                     try:
                         report = await self._execute_stage(
-                            stage, pr_url=pr_url, previous_results=stage_results
+                            stage,
+                            pr_url=pr_url,
+                            previous_results=stage_results,
+                            blueprint=blueprint_payload,
                         )
                     except Exception as exc:  # pragma: no cover - defensive logging path
                         stage_state.status = StageStatus.FAILED
@@ -481,6 +494,7 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
 
         finally:
             await self._shutdown_agents()
+            self._active_blueprint = None
 
         self.update_status("completed")
         result.end_time = datetime.now(timezone.utc).timestamp()
@@ -488,6 +502,7 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
             "stages": {name: report.model_dump() for name, report in stage_results.items()},
             "summary": self._synthesize_summary(stage_results),
             "errors": errors,
+            "blueprint": self._blueprint_public_view(blueprint_payload),
         }
         result.metadata = self.get_state_snapshot()
         return result
@@ -498,6 +513,7 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
         *,
         pr_url: str | None,
         previous_results: Mapping[str, StageReport],
+        blueprint: Mapping[str, Any],
     ) -> StageReport:
         """Simulate execution of a single stage and update budget usage."""
 
@@ -526,6 +542,7 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
                 "pr_url": pr_url,
                 "depends_on": list(stage.depends_on),
                 "prior_stage_count": len(previous_results),
+                "blueprint": self._blueprint_public_view(blueprint),
             },
             outputs={
                 "notes": stage.description,
@@ -535,6 +552,45 @@ class VibeCodingOrchestrator(Workflow[Dict[str, Any]]):
         self._sync_state_metadata()
         self._notify_state_observers()
         return report
+
+    def _prepare_blueprint(
+        self, blueprint: Mapping[str, Any] | None, pr_url: str | None
+    ) -> Mapping[str, Any]:
+        if blueprint is None:
+            raise ValueError("VibeCoding workflow requires a 'pr_blueprint' payload")
+        if not isinstance(blueprint, Mapping):
+            raise TypeError("Blueprint must be a mapping of metadata")
+        required = ("identifier", "title", "branch", "description", "files")
+        missing = [field for field in required if not blueprint.get(field)]
+        if missing:
+            raise ValueError(
+                "Blueprint is missing required fields: " + ", ".join(sorted(missing))
+            )
+        files = blueprint.get("files")
+        if not isinstance(files, list) or not all(isinstance(f, str) for f in files):
+            raise TypeError("Blueprint field 'files' must be a list of file paths")
+        if not files:
+            raise ValueError("Blueprint must include at least one target file")
+        tests = blueprint.get("tests") or []
+        if not isinstance(tests, list):
+            raise TypeError("Blueprint field 'tests' must be a list if provided")
+        normalized: MutableMapping[str, Any] = dict(blueprint)
+        normalized.setdefault("tests", tests)
+        normalized.setdefault("pr_url", pr_url or blueprint.get("pr_url"))
+        normalized["files"] = list(files)
+        return normalized
+
+    def _blueprint_public_view(self, blueprint: Mapping[str, Any] | None) -> Dict[str, Any]:
+        if blueprint is None:
+            return {}
+        return {
+            "identifier": blueprint.get("identifier"),
+            "title": blueprint.get("title"),
+            "branch": blueprint.get("branch"),
+            "files": list(blueprint.get("files", [])),
+            "tests": list(blueprint.get("tests", [])),
+            "pr_url": blueprint.get("pr_url"),
+        }
 
     def _synthesize_summary(self, stages: Mapping[str, StageReport]) -> str:
         if not stages:

@@ -57,6 +57,19 @@ def agent_factory():
     return factory
 
 
+@pytest.fixture()
+def sample_blueprint() -> dict:
+    return {
+        "identifier": "task-01-api",
+        "title": "Backend: Invoice",
+        "branch": "feature/task-01-api",
+        "description": "Implements backend endpoints for invoices",
+        "files": ["backend/api/invoice.py", "backend/models/invoice.py"],
+        "tests": ["tests/api/test_invoice.py"],
+        "pr_url": "https://example.com/pr/99",
+    }
+
+
 def test_default_config_contains_fifteen_stages():
     config = VibeCodingWorkflowConfig.default()
     assert len(config.stages) == 15
@@ -90,7 +103,7 @@ def test_stage_queue_respects_dependencies():
     assert ready and ready[0].name == "diff_analysis"
 
 
-def test_run_executes_all_stages(mock_context, agent_factory):
+def test_run_executes_all_stages(mock_context, agent_factory, sample_blueprint):
     async def _execute():
         config = VibeCodingWorkflowConfig.default()
         config.monitor_refresh_interval = 0
@@ -100,7 +113,7 @@ def test_run_executes_all_stages(mock_context, agent_factory):
             agent_factory=agent_factory,
         )
 
-        result = await orchestrator.run(pr_url="https://example.com/pr/99")
+        result = await orchestrator.run(pr_blueprint=sample_blueprint)
         assert len(result.value["stages"]) == 15
         snapshot = orchestrator.get_state_snapshot()
         assert all(
@@ -108,5 +121,21 @@ def test_run_executes_all_stages(mock_context, agent_factory):
             for state in snapshot["stages"].values()
         )
         assert "summary" in result.value
+        assert result.value["blueprint"]["identifier"] == sample_blueprint["identifier"]
 
     asyncio.run(_execute())
+
+
+def test_run_requires_blueprint(mock_context, agent_factory):
+    async def _execute():
+        config = VibeCodingWorkflowConfig.default()
+        orchestrator = VibeCodingOrchestrator(
+            context=mock_context,
+            config=config,
+            agent_factory=agent_factory,
+        )
+
+        await orchestrator.run()
+
+    with pytest.raises(ValueError):
+        asyncio.run(_execute())
