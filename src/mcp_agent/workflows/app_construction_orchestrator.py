@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Mapping, MutableMapping
 
 from pydantic import BaseModel, Field, PrivateAttr
@@ -21,10 +20,7 @@ from mcp_agent.agents.app_construction.pr_generation_agent import (
     PullRequestBlueprint,
     generate_blueprints,
 )
-from mcp_agent.agents.app_construction.repo_commit_agent import (
-    CommitSummary,
-    summarize_commits,
-)
+from mcp_agent.agents.app_construction.repo_commit_agent import summarize_commits
 from mcp_agent.agents.app_construction.repo_initializer_agent import (
     RepoInitializationRequest,
     RepoInitializationResult,
