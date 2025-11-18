@@ -34,3 +34,85 @@ mcp:
       args:
         - "-y"
         - "@modelcontextprotocol/server-filesystem"
+
+app_construction:
+  enabled: true
+  repo_template: "templates/nextjs-fastapi"
+  system_spec_path: "docs/app_construction/canonical_system.md"
+  target_branch: "app-construction"
+  vibe_coding_workflow: "mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator.VibeCodingOrchestrator"
+  vibe_coding_monitor: "mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator.VibeCodingOrchestratorMonitor"
+  agents:
+    repo_initializer:
+      builder: "mcp_agent.agents.app_construction.repo_initializer_agent.build"
+      description: "Bootstraps repositories and wiring for the orchestrator."
+      server_names:
+        - "github"
+        - "filesystem"
+    spec_parser:
+      builder: "mcp_agent.agents.app_construction.spec_parser_agent.build"
+      description: "Parses the canonical system description and template."
+      server_names:
+        - "filesystem"
+        - "code-index"
+    planning:
+      builder: "mcp_agent.agents.app_construction.planning_agent.build"
+      description: "Breaks requirements into executable tasks."
+      server_names:
+        - "filesystem"
+        - "code-index"
+        - "ast-grep"
+    pr_generation:
+      builder: "mcp_agent.agents.app_construction.pr_generation_agent.build"
+      description: "Creates artifact-aware PR plans."
+      server_names:
+        - "filesystem"
+        - "code-index"
+        - "ast-grep"
+    validation:
+      builder: "mcp_agent.agents.app_construction.validation_agent.build"
+      description: "Runs local validation suites per PR plan."
+      server_names:
+        - "filesystem"
+        - "code-index"
+        - "dependency-management"
+        - "lsp"
+    repo_commit:
+      builder: "mcp_agent.agents.app_construction.repo_commit_agent.build"
+      description: "Stages commits and pushes to the app-construction branch."
+      server_names:
+        - "filesystem"
+        - "github"
+  stages:
+    - name: "repository_bootstrap"
+      description: "Clone template, initialize repo, and prep branch."
+      agent: "repo_initializer"
+      kind: "bootstrap"
+      parameters:
+        repo_name: "app-construction"
+    - name: "spec_analysis"
+      description: "Parse the canonical system description."
+      agent: "spec_parser"
+      kind: "spec_analysis"
+    - name: "execution_planning"
+      description: "Produce atomic, dependency-aware plan entries."
+      agent: "planning"
+      kind: "planning"
+    - name: "pr_blueprinting"
+      description: "Generate artifact-aware PR plans for each feature."
+      agent: "pr_generation"
+      kind: "pr_blueprinting"
+      parameters:
+        max_pull_requests: 3
+    - name: "feature_implementation"
+      description: "Run VibeCoding for every PR plan and capture outputs."
+      agent: "pr_generation"
+      kind: "implementation"
+    - name: "validation"
+      description: "Execute lint/tests and cross-check the system description."
+      agent: "validation"
+      kind: "validation"
+    - name: "repo_commit"
+      description: "Bundle validated work into the app-construction branch."
+      agent: "repo_commit"
+      kind: "commit"

@@ -39,6 +39,143 @@
       "title": "AgentSpec",
       "type": "object"
     },
+    "AppConstructionAgentSettings": {
+      "additionalProperties": true,
+      "description": "Configures how an App Construction agent is instantiated.",
+      "properties": {
+        "builder": {
+          "title": "Builder",
+          "type": "string"
+        },
+        "server_names": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Server Names",
+          "type": "array"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "builder"
+      ],
+      "title": "AppConstructionAgentSettings",
+      "type": "object"
+    },
+    "AppConstructionStageSettings": {
+      "additionalProperties": true,
+      "description": "Declarative definition of an App Construction workflow stage.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "agent": {
+          "title": "Agent",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "bootstrap",
+            "spec_analysis",
+            "planning",
+            "pr_blueprinting",
+            "implementation",
+            "validation",
+            "commit"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "agent",
+        "kind"
+      ],
+      "title": "AppConstructionStageSettings",
+      "type": "object"
+    },
+    "AppConstructionWorkflowSettings": {
+      "additionalProperties": true,
+      "description": "Top-level workflow configuration for the App Construction orchestrator.",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "repo_template": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Repo Template"
+        },
+        "system_spec_path": {
+          "default": "docs/app_construction/canonical_system.md",
+          "title": "System Spec Path",
+          "type": "string"
+        },
+        "target_branch": {
+          "default": "app-construction",
+          "title": "Target Branch",
+          "type": "string"
+        },
+        "vibe_coding_workflow": {
+          "default": "mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator.VibeCodingOrchestrator",
+          "title": "Vibe Coding Workflow",
+          "type": "string"
+        },
+        "vibe_coding_monitor": {
+          "default": "mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator.VibeCodingOrchestratorMonitor",
+          "title": "Vibe Coding Monitor",
+          "type": "string"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/AppConstructionStageSettings"
+          },
+          "title": "Stages",
+          "type": "array"
+        },
+        "agents": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AppConstructionAgentSettings"
+          },
+          "title": "Agents",
+          "type": "object"
+        }
+      },
+      "title": "AppConstructionWorkflowSettings",
+      "type": "object"
+    },
     "AnthropicSettings": {
       "additionalProperties": true,
       "description": "Settings for using Anthropic models in the MCP Agent application.",
@@ -2009,6 +2146,17 @@
         "definitions": []
       },
       "description": "Settings for defining and loading subagents for the MCP Agent application"
+    },
+    "app_construction": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppConstructionWorkflowSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Configures the App Construction orchestrator."
     },
     "authorization": {
       "anyOf": [

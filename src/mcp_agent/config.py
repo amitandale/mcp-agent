@@ -615,6 +615,142 @@ class SubagentSettings(BaseModel):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
+class AppConstructionAgentSettings(BaseModel):
+    """Configures how the App Construction workflow instantiates an agent."""
+
+    builder: str
+    """Import path to the agent builder (e.g. mcp_agent.agents...build)."""
+
+    server_names: List[str] = Field(default_factory=list)
+    """Documented server access; validated against the instantiated agent."""
+
+    description: str | None = None
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+
+class AppConstructionStageSettings(BaseModel):
+    """Declarative definition of a workflow stage."""
+
+    name: str
+    description: str
+    agent: str
+    kind: Literal[
+        "bootstrap",
+        "spec_analysis",
+        "planning",
+        "pr_blueprinting",
+        "implementation",
+        "validation",
+        "commit",
+    ]
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+
+class AppConstructionWorkflowSettings(BaseModel):
+    """Top-level workflow configuration for the App Construction orchestrator."""
+
+    enabled: bool = True
+    repo_template: str | None = None
+    system_spec_path: str = "docs/app_construction/canonical_system.md"
+    target_branch: str = "app-construction"
+    vibe_coding_workflow: str = (
+        "mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator.VibeCodingOrchestrator"
+    )
+    vibe_coding_monitor: str = (
+        "mcp_agent.workflows.vibe_coding.vibe_coding_orchestrator.VibeCodingOrchestratorMonitor"
+    )
+    stages: List[AppConstructionStageSettings] = Field(default_factory=list)
+    agents: Dict[str, AppConstructionAgentSettings] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+    @classmethod
+    def default(cls) -> "AppConstructionWorkflowSettings":
+        """Return a built-in configuration matching the canonical workflow."""
+
+        return cls(
+            repo_template="templates/nextjs-fastapi",
+            stages=[
+                AppConstructionStageSettings(
+                    name="repository_bootstrap",
+                    description="Bootstrap a repository from the selected template",
+                    agent="repo_initializer",
+                    kind="bootstrap",
+                    parameters={"repo_name": "app-construction"},
+                ),
+                AppConstructionStageSettings(
+                    name="spec_analysis",
+                    description="Parse the canonical system description",
+                    agent="spec_parser",
+                    kind="spec_analysis",
+                ),
+                AppConstructionStageSettings(
+                    name="execution_planning",
+                    description="Produce an ordered implementation plan",
+                    agent="planning",
+                    kind="planning",
+                ),
+                AppConstructionStageSettings(
+                    name="pr_blueprinting",
+                    description="Generate artifact-aware PR plans",
+                    agent="pr_generation",
+                    kind="pr_blueprinting",
+                ),
+                AppConstructionStageSettings(
+                    name="feature_implementation",
+                    description="Call VibeCoding for each planned PR",
+                    agent="pr_generation",
+                    kind="implementation",
+                ),
+                AppConstructionStageSettings(
+                    name="validation",
+                    description="Run validations and verify spec coverage",
+                    agent="validation",
+                    kind="validation",
+                ),
+                AppConstructionStageSettings(
+                    name="repo_commit",
+                    description="Commit and push to the app-construction branch",
+                    agent="repo_commit",
+                    kind="commit",
+                ),
+            ],
+            agents={
+                "repo_initializer": AppConstructionAgentSettings(
+                    builder="mcp_agent.agents.app_construction.repo_initializer_agent.build",
+                    server_names=["github", "filesystem"],
+                ),
+                "spec_parser": AppConstructionAgentSettings(
+                    builder="mcp_agent.agents.app_construction.spec_parser_agent.build",
+                    server_names=["filesystem", "code-index"],
+                ),
+                "planning": AppConstructionAgentSettings(
+                    builder="mcp_agent.agents.app_construction.planning_agent.build",
+                    server_names=["filesystem", "code-index", "ast-grep"],
+                ),
+                "pr_generation": AppConstructionAgentSettings(
+                    builder="mcp_agent.agents.app_construction.pr_generation_agent.build",
+                    server_names=["filesystem", "code-index", "ast-grep"],
+                ),
+                "validation": AppConstructionAgentSettings(
+                    builder="mcp_agent.agents.app_construction.validation_agent.build",
+                    server_names=[
+                        "filesystem",
+                        "code-index",
+                        "dependency-management",
+                        "lsp",
+                    ],
+                ),
+                "repo_commit": AppConstructionAgentSettings(
+                    builder="mcp_agent.agents.app_construction.repo_commit_agent.build",
+                    server_names=["filesystem", "github"],
+                ),
+            },
+        )
+
 class TemporalSettings(BaseModel):
     """
     Temporal settings for the MCP Agent application.
@@ -1156,6 +1292,9 @@ class Settings(BaseSettings):
 
     agents: SubagentSettings | None = SubagentSettings()
     """Settings for defining and loading subagents for the MCP Agent application"""
+
+    app_construction: AppConstructionWorkflowSettings | None = None
+    """Configures the App Construction orchestrator."""
 
     authorization: MCPAuthorizationServerSettings | None = None
     """Settings for exposing this MCP application as an OAuth protected resource"""
