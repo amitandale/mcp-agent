@@ -10,6 +10,12 @@ from .claude_tool import (
     ClaudeStreamingResult,
     ClaudeTool,
 )
+from .grok_tool import (
+    GrokCommandResult,
+    GrokStreamEvent,
+    GrokStreamingResult,
+    GrokTool,
+)
 
 __all__ = [
     "AntigravityCommandResult",
@@ -20,4 +26,8 @@ __all__ = [
     "ClaudeStreamEvent",
     "ClaudeStreamingResult",
     "ClaudeTool",
+    "GrokCommandResult",
+    "GrokStreamEvent",
+    "GrokStreamingResult",
+    "GrokTool",
 ]

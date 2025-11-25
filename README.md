@@ -542,6 +542,31 @@ Docs: The adapter is fully typed and documented in `src/mcp_agent/tools/antigrav
 
 Docs: [CLI reference](https://docs.mcp-agent.com/reference/cli) • [Getting started guides](https://docs.mcp-agent.com/get-started/quickstart).
 
+## Grok CLI adapter
+
+`GrokTool` provides full programmatic access to the Grok CLI, mirroring all documented flags and MCP extensions.
+
+- **Installation:** install the Grok CLI (for example, `uvx grok --version`); set the API key via `GROK_API_KEY`, `.env`, or constructor.
+- **Workspace & context:** pass `directory`/`workspace`, `model`, `base_url`, `max_tool_rounds`, and `prompt` to match `grok` top-level flags. Short or long switches are supported through `prefer_short_flags`.
+- **Usage modes:** call `run()` without a prompt for interactive flows or with `prompt` for headless/CI runs. `version()` and `help()` expose `--version`/`--help`.
+- **Streaming:** set `stream=True` on `run()` or `run_raw()` to receive `GrokStreamEvent` updates in real time; JSON streams are parsed when `parse_json_stream=True`.
+- **MCP integration:** `mcp_add`, `mcp_add_json`, `mcp_list`, `mcp_test`, and `mcp_remove` map directly to Grok's MCP commands, including transport, command, URL, and argument wiring.
+- **Morph Fast Apply:** enable `morph_fast_apply=True` or supply `MORPH_API_KEY` to surface Morph-specific acceleration flags to the CLI environment.
+
+Example:
+
+```python
+from mcp_agent.tools.grok_tool import GrokTool
+
+grok = GrokTool(workspace="/repo", api_key="sk-...", model="grok-code-fast-1")
+
+async for event in (await grok.run(prompt="List TODOs", max_tool_rounds=25, stream=True)).stream:
+    print(event.text)
+
+await grok.mcp_add("db", transport="http", url="http://localhost:4040", command="db-mcp")
+print(await grok.mcp_list())
+```
+
 ## Authentication
 
 Load API keys from secrets files or use the built-in OAuth client to fetch and persist tokens for MCP servers.
