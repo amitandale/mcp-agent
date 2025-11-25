@@ -574,6 +574,28 @@ await grok.mcp_add_json("linear", '{"command":"bun","args":["server.js"],"env":{
 print(await grok.mcp_list())
 ```
 
+## Kimi CLI adapter
+
+`KimiTool` exposes the MoonshotAI Kimi CLI for agent workflows, including interactive sessions, prompt-based asks, chat, configuration, history, and MCP connectivity.
+
+- **Authentication:** keys are resolved from the ``api_key`` argument, ``KIMI_API_KEY`` environment variable, project ``.kimi/settings.json``, global ``~/.kimi/user-settings.json``, or project ``.env``. Missing keys raise a descriptive error and you can seed credentials with ``kimi config set-key``.
+- **Models & context:** set ``model`` per-call or via ``MOONSHOT_MODEL``; working directories are forwarded through the adapter so per-project context is preserved.
+- **Commands:** ``run`` launches an interactive shell, ``ask`` issues one-shot prompts, ``chat`` opens a dialogue session, ``config_show``/``config_set_key`` manage CLI config, and ``history_list`` mirrors ``kimi history list``.
+- **MCP integration:** pass ``mcp_config_file`` to forward a validated MCP JSON file with ``--mcp-config-file`` for tool connectivity.
+- **Streaming:** set ``stream=True`` on supported methods or ``run_raw`` to receive ``KimiStreamEvent`` updates in real time.
+
+Example:
+
+```python
+from mcp_agent.tools.kimi_tool import KimiTool
+
+kimi = KimiTool(workspace="/repo", api_key="kimi-...")
+response = await kimi.ask("Summarize this project")
+
+await kimi.run(mcp_config_file="/repo/kimi_mcp.json", model="kimi-k2-turbo-preview")
+print(await kimi.config_show())
+```
+
 ## Authentication
 
 Load API keys from secrets files or use the built-in OAuth client to fetch and persist tokens for MCP servers.

@@ -16,6 +16,12 @@ from .grok_tool import (
     GrokStreamingResult,
     GrokTool,
 )
+from .kimi_tool import (
+    KimiCommandResult,
+    KimiStreamEvent,
+    KimiStreamingResult,
+    KimiTool,
+)
 
 __all__ = [
     "AntigravityCommandResult",
@@ -30,4 +36,8 @@ __all__ = [
     "GrokStreamEvent",
     "GrokStreamingResult",
     "GrokTool",
+    "KimiCommandResult",
+    "KimiStreamEvent",
+    "KimiStreamingResult",
+    "KimiTool",
 ]
