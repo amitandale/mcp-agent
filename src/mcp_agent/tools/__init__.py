@@ -16,6 +16,12 @@ from .grok_tool import (
     GrokStreamingResult,
     GrokTool,
 )
+from .qwen_tool import (
+    QwenCommandResult,
+    QwenStreamEvent,
+    QwenStreamingResult,
+    QwenTool,
+)
 from .kimi_tool import (
     KimiCommandResult,
     KimiStreamEvent,
@@ -36,6 +42,10 @@ __all__ = [
     "GrokStreamEvent",
     "GrokStreamingResult",
     "GrokTool",
+    "QwenCommandResult",
+    "QwenStreamEvent",
+    "QwenStreamingResult",
+    "QwenTool",
     "KimiCommandResult",
     "KimiStreamEvent",
     "KimiStreamingResult",

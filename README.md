@@ -596,6 +596,32 @@ await kimi.run(mcp_config_file="/repo/kimi_mcp.json", model="kimi-k2-turbo-previ
 print(await kimi.config_show())
 ```
 
+## Qwen Code CLI adapter
+
+`QwenTool` exposes every documented Qwen Code CLI flag, slash command, and MCP hook so agents can drive the CLI headlessly or stream updates into workflows.
+
+- **Authentication:** API keys resolve from the ``api_key`` argument, ``QWEN_API_KEY`` environment variable, or a project ``.env``. Missing keys raise a descriptive error so callers can prompt the user upstream if desired.
+- **Prompting & workspace context:** ``prompt`` mirrors ``qwen --prompt`` and forwards ``--include-directories``, ``--checkpointing``, ``--model``, ``--base-url``, and ``--mcp-config-file``. ``prompt_with_files`` expands ``@<path>`` blocks by reading project files while skipping binary content.
+- **Slash commands:** helpers map 1:1 to Qwen’s controls: ``bug``, ``summary``, ``compress_history``, ``copy_output``, ``directory_add/show``, ``chat`` (save/resume/list/delete/share), ``mcp`` (list/schema/descriptions/nodescriptions), ``memory`` (add/show/refresh), ``restore``, ``stats``, ``approval_mode`` (plan/default/auto-edit/yolo with optional scope), ``agents`` (create/manage), and ``help``.
+- **Shell passthrough:** ``run_shell`` prefixes commands with ``!`` and preserves workspace-aware execution. Use ``format_shell_command`` to build shell-safe invocations.
+- **Custom commands:** ``run_custom`` loads TOML definitions from ``~/.qwen/commands`` or ``<workspace>/.qwen/commands`` (``prompt`` key with ``{{args}}`` substitution) and executes them via ``--prompt``.
+- **MCP tooling:** forward CLI MCP config with ``--mcp-config-file`` or call ``mcp_list``, ``mcp_schema``, ``mcp_descriptions``, and ``mcp_nodescriptions`` to surface server health and tool schemas.
+
+Example:
+
+```python
+from mcp_agent.tools.qwen_tool import QwenTool
+
+qwen = QwenTool(workspace="/repo", api_key="qwen-...", include_directories=["src", "tests"], checkpointing=True)
+
+async for event in (await qwen.prompt("@src/main.py Summarize the entrypoint", stream=True)).stream:
+    print(event.text)
+
+await qwen.directory_add("/repo/extra")
+await qwen.approval_mode("plan", scope="project")
+await qwen.run_custom("refactor:pure", args="handlers.py", workspace="/repo")
+```
+
 ## Authentication
 
 Load API keys from secrets files or use the built-in OAuth client to fetch and persist tokens for MCP servers.
