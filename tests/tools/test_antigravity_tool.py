@@ -1,5 +1,4 @@
 import json
-import sys
 import textwrap
 from pathlib import Path
 
@@ -24,7 +23,6 @@ def _write_fake_cli(tmp_path: Path) -> Path:
             #!/usr/bin/env python3
             import argparse
             import json
-            import sys
             import time
 
             parser = argparse.ArgumentParser()
