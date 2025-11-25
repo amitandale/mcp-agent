@@ -114,6 +114,7 @@ async def test_mcp_add_arguments(monkeypatch):
         command="python",
         url="http://localhost:4040",
         args=["--debug"],
+        env={"API_KEY": "abc", "DEBUG": "1"},
     )
 
     assert recorded == [
@@ -131,4 +132,35 @@ async def test_mcp_add_arguments(monkeypatch):
         "http://localhost:4040",
         "--args",
         "--debug",
+        "--env",
+        "API_KEY=abc",
+        "--env",
+        "DEBUG=1",
+    ]
+
+
+@pytest.mark.anyio
+async def test_mcp_add_json_inline(monkeypatch):
+    tool = GrokTool(api_key="token")
+
+    captured: list[str] = []
+
+    async def fake_run_command(
+        args, *, stream, timeout, parse_json_stream=False, require_api_key=True, env_overrides=None
+    ):
+        captured.extend(args)
+        return GrokCommandResult(command=args, success=True)
+
+    monkeypatch.setattr(tool, "_run_command", fake_run_command)
+
+    await tool.mcp_add_json("linear", '{"command":"bun","args":["server.js"],"env":{"API_KEY":"key"}}')
+
+    assert captured == [
+        "grok",
+        "--api-key",
+        "token",
+        "mcp",
+        "add-json",
+        "linear",
+        '{"command":"bun","args":["server.js"],"env":{"API_KEY":"key"}}',
     ]

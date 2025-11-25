@@ -138,6 +138,7 @@ class GrokTool:
         command: str | None = None,
         url: str | None = None,
         args: Iterable[str] | None = None,
+        env: Iterable[str] | Dict[str, str] | None = None,
         directory: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
@@ -164,6 +165,8 @@ class GrokTool:
         if args:
             for arg in args:
                 cli_args.extend(["--args", arg])
+        if env:
+            cli_args.extend(self._env_args(env))
         if extra_args:
             cli_args.extend(extra_args)
 
@@ -176,7 +179,8 @@ class GrokTool:
 
     async def mcp_add_json(
         self,
-        path: str,
+        name: str,
+        config: str,
         *,
         directory: str | None = None,
         api_key: str | None = None,
@@ -185,7 +189,7 @@ class GrokTool:
         prefer_short_flags: bool = False,
         timeout: float | None = None,
     ) -> GrokCommandResult:
-        """Add MCP servers using a JSON config file via ``grok mcp add-json``."""
+        """Add MCP servers using an inline JSON config via ``grok mcp add-json``."""
 
         cli_args = self._base_args(
             directory=directory,
@@ -194,7 +198,7 @@ class GrokTool:
             model=model,
             prefer_short_flags=prefer_short_flags,
         )
-        cli_args.extend(["mcp", "add-json", path])
+        cli_args.extend(["mcp", "add-json", name, config])
 
         return await self._run_command(
             cli_args,
@@ -344,6 +348,19 @@ class GrokTool:
     @staticmethod
     def _flag(short: str, long: str, prefer_short: bool) -> str:
         return short if prefer_short else long
+
+    @staticmethod
+    def _env_args(env: Iterable[str] | Dict[str, str]) -> list[str]:
+        """Render ``--env`` arguments from mappings or iterables."""
+
+        if isinstance(env, dict):
+            entries = [f"{key}={value}" for key, value in env.items()]
+        else:
+            entries = list(env)
+        args: list[str] = []
+        for entry in entries:
+            args.extend(["--env", entry])
+        return args
 
     def _resolve_api_key(self, api_key: str | None) -> str:
         resolved = (
