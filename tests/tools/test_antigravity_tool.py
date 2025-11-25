@@ -3,10 +3,6 @@ import sys
 import textwrap
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(ROOT / "src"))
-
 import pytest
 
 from mcp_agent.tools.antigravity_tool import (
