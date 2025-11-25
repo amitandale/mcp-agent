@@ -514,6 +514,32 @@ uvx mcp-agent init --template basic             # Scaffold a new project
 uvx mcp-agent deploy my-agent                   # Deploy to mcp-agent Cloud
 ```
 
+## Google Antigravity CLI adapter
+
+Use the Antigravity tool adapter when you want agents to drive the Google Antigravity CLI with full workspace awareness, live streams, and MCP connectivity.
+
+- **Installation:** install the CLI locally (for example, `uvx antigravity --version`). The adapter surfaces a ``binary`` parameter if the executable lives outside `$PATH`.
+- **Workspace & projects:** pass ``workspace``/``project`` on the constructor or per-call; ``.antigravity.json`` is auto-discovered from the workspace root and forwarded via ``--config``.
+- **Commands:** ``command``, ``plan``, ``review``, ``refactor``, ``test``, ``doc``, ``agent``, and ``mcp`` all map directly to the CLI flags (``--agent``, ``--params``, ``--stream``, ``--json``, ``--scope``, ``--format``, ``--args``, ``--config``, etc.).
+- **Streaming:** when ``stream=True``, results arrive as async events so workflows can emit partial updates while the CLI runs.
+- **MCP integration:** ``mcp_register``, ``mcp_unregister``, ``mcp_list``, and ``mcp_invoke`` wrap Antigravity's MCP management commands to register remote tools alongside local operations.
+
+Example:
+
+```python
+from mcp_agent.tools.antigravity_tool import AntigravityTool
+
+tool = AntigravityTool(workspace="/repo/project", project="demo")
+
+async for event in (await tool.review(stream=True)).stream:
+    print("[review]", event.text)
+
+result = await tool.mcp_invoke("supabase.schema", params={"db": "main"})
+print("Schema response", result.stdout)
+```
+
+Docs: The adapter is fully typed and documented in `src/mcp_agent/tools/antigravity_tool.py`, including error handling, timeouts, and streaming semantics.
+
 Docs: [CLI reference](https://docs.mcp-agent.com/reference/cli) • [Getting started guides](https://docs.mcp-agent.com/get-started/quickstart).
 
 ## Authentication
