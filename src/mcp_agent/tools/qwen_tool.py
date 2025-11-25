@@ -358,7 +358,11 @@ class QwenTool:
         parse_json_stream: bool = False,
     ) -> QwenCommandResult | QwenStreamingResult:
         resolved_timeout = self.default_timeout if timeout is None else timeout
-        env = {**self.env, "QWEN_API_KEY": self._resolve_api_key()}
+        # Inherit the current environment so system binaries (including Python
+        # itself when used as a stand-in for the Qwen CLI during tests) can
+        # locate their shared libraries. Only overlay custom values and the
+        # required API key.
+        env = {**os.environ, **self.env, "QWEN_API_KEY": self._resolve_api_key()}
 
         try:
             process = await asyncio.create_subprocess_exec(
