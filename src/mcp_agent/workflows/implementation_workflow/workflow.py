@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import asyncio
 import tempfile
-from pathlib import Path
 from typing import List
 
 from mcp_agent.agents.agent_spec import AgentSpec
@@ -20,7 +18,6 @@ from mcp_agent.workflows.implementation_workflow.models import (
     PRImplementationRequest,
     PullRequestResult,
     RepositoryCheckoutResult,
-    Vendor,
 )
 from mcp_agent.workflows.implementation_workflow.vendor import VendorCLIRunner
 
@@ -271,7 +268,6 @@ async def summarize_diff(workspace_path: str) -> DiffSummary:
     return DiffSummary(files=files, full_diff=diff_text)
 
 
-@app.workflow
 class ImplementationWorkflow(Workflow[PRImplementationOutput]):
     @app.workflow_run
     async def run(self, payload: PRImplementationRequest) -> WorkflowResult[PRImplementationOutput]:
@@ -318,6 +314,11 @@ class ImplementationWorkflow(Workflow[PRImplementationOutput]):
         )
 
 
-@app.workflow(name="implementation_workflow_v1")
+# Register the workflow with the desired identifier
+ImplementationWorkflow = app.workflow(
+    ImplementationWorkflow, workflow_id="implementation_workflow_v1"
+)
+
+
 def register_workflow() -> Workflow[PRImplementationOutput]:
     return ImplementationWorkflow()
