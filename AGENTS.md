@@ -1,6 +1,6 @@
 # Contribution guardrails for mcp-agent
 
-These instructions apply to the entire repository. They codify the core mcp-agent architecture so new code reuses existing primitives instead of reimplementing or bypassing them. Keep the longer reference in `agents.md` handy for deep examples and placement rules.
+These instructions apply to the entire repository. They codify the core mcp-agent architecture so new code reuses existing primitives instead of reimplementing or bypassing them. Keep the longer reference in `agents.md` handy for deep examples and placement rules, and cross-check the docs noted below before coding.
 
 ## Source-of-truth architecture
 - Production code lives under `src/mcp_agent/**`; `examples/**` are reference-only and must not contain production logic.
@@ -53,7 +53,7 @@ For each folder under `src/mcp_agent/`, keep production code aligned with its pu
 Before implementing a workflow, read the core references so you follow the documented archetypes and decorator behaviors:
 - `docs/workflows/overview.mdx` — Pattern catalog with links to router, intent classifier, evaluator/optimizer, orchestrator, deep orchestrator, parallel, and swarm walkthroughs.
 - `docs/workflows/*.mdx` — Detailed guides for each workflow type; match the PR to the closest guide before coding.
-- `docs/reference/decorators.mdx` — Behavior of `@app.workflow`, `@app.workflow_run`, and `@app.workflow_task` in asyncio and Temporal modes.
+- `docs/reference/decorators.mdx` — Behavior of `@app.workflow`, `@app.workflow_run`, and `@app.workflow_task` in asyncio and Temporal modes; tools/tasks auto-adapt to Temporal activities and expose hidden workflows for tool calls.
 
 After reviewing the docs, study the relevant patterns in `src/mcp_agent/data/examples/workflows/` and port (not rewrite) the shape that fits the PR:
 - **Router/Intent flows** — For routing requests to specialized agents, review `workflow_router/main.py` and `workflow_intent_classifier/main.py`.
@@ -80,9 +80,9 @@ def register_workflow() -> Workflow[str]:
 
 ## 3) Adding agents (port from examples, declare servers)
 Before modifying or adding an agent, read these docs to keep MCP wiring and tool exposure consistent:
-- `docs/concepts/agents.mdx` — Agent components, config-driven specs, and MCP server attachment via `server_names`.
-- `docs/concepts/mcp-primitives.mdx` — How tools/resources/prompts map to MCP primitives that agents call.
-- `docs/reference/decorators.mdx` — Tool/task/workflow decorators that agents call through MCP entrypoints.
+- `docs/concepts/agents.mdx` — Agent components, config-driven specs, and MCP server attachment via `server_names`; agents run with attached LLMs and discover MCP tools automatically.
+- `docs/concepts/mcp-primitives.mdx` — How tools/resources/prompts map to MCP primitives that agents call; keep tools exposed via MCP rather than bespoke calls.
+- `docs/reference/decorators.mdx` — Tool/task/workflow decorators that agents call through MCP entrypoints; tools registered with `@app.tool` automatically get a hidden workflow endpoint for MCP access.
 
 Use the agent patterns shown in `examples/usecases/**` (and the workflow examples above) as reference implementations. Always declare `server_names` and export a config-driven builder:
 - **Single-purpose agents** — e.g., browser/file/finders in `mcp_browser_agent`, `mcp_basic_slack_agent`, `streamlit_mcp_basic_agent`.
@@ -90,7 +90,7 @@ Use the agent patterns shown in `examples/usecases/**` (and the workflow example
 - **Automation/ops agents** — e.g., GitHub-to-Slack notifier, Supabase migration helper, Playwright CSV exporter in their respective folders.
 - **Research/multi-tool agents** — e.g., `mcp_researcher`, `mcp_instagram_gift_advisor`, or orchestrated cohorts in `mcp_financial_analyzer`.
 
-**Function tools (defined under `src/mcp_agent/tools`)** — Port the pattern from `examples/basic/functions/main.py`. Keep functions minimal, register them on the agent, and omit `server_names` when you only use local function tools (add MCP servers to `server_names` only when you actually consume them):
+**Function tools (defined under `src/mcp_agent/tools`)** — Port the pattern from `examples/basic/functions/main.py`. Keep functions minimal, register them on the agent, and omit `server_names` when you only use local function tools (add MCP servers to `server_names` only when you actually consume them). Tools registered with `@app.tool`/`@app.async_tool` gain MCP exposure automatically, so agents consume them via MCP or attach the wrapper directly as a function tool:
 ```python
 from mcp_agent.agents import AgentSpec, Agent
 from mcp_agent.tools.math import add_numbers, multiply_numbers
@@ -106,7 +106,7 @@ def build(context=None) -> Agent:
     return create_agent(spec=SPEC, context=context)
 ```
 
-**Function tools — Claude adapter example** — The CLI adapters under `src/mcp_agent/tools/` can also be attached as function tools. Instantiate the adapter and expose a thin async wrapper as the callable you register on the agent:
+**Function tools — Claude adapter example** — The CLI adapters under `src/mcp_agent/tools/` can also be attached as function tools. Instantiate the adapter and expose a thin async wrapper as the callable you register on the agent (see `docs/reference/decorators.mdx` for tool metadata options):
 ```python
 from mcp_agent.agents import AgentSpec, Agent
 from mcp_agent.tools.claude_tool import ClaudeTool
@@ -163,3 +163,15 @@ Before starting a PR, identify the closest matching use case under `examples/use
 - `reliable_conversation` — Conversation manager with quality control and persistence.
 - `streamlit_mcp_basic_agent` — Streamlit UI for finder agent (fetch + filesystem).
 - `streamlit_mcp_rag_agent` — Streamlit RAG agent backed by Qdrant MCP server.
+
+## 6) Analysis checklist (read before coding any PR)
+To avoid diverging from the core architecture, perform this analysis in order **before** writing code:
+1. **Read the PR description carefully** to identify the target domain (workflow vs. agent vs. tooling) and any required providers/servers.
+2. **Review this `AGENTS.md` and the scoped `AGENTS.md` files** in the touched directories to understand placement and architecture guardrails.
+3. **Consult the docs specific to the change type**:
+   - Workflows: `docs/workflows/overview.mdx`, the matching `docs/workflows/<pattern>.mdx`, and `docs/reference/decorators.mdx` for decorator behavior (asyncio vs. Temporal, hidden tool workflows, task retry/timeout semantics).
+   - Agents: `docs/concepts/agents.mdx`, `docs/concepts/mcp-primitives.mdx`, and `docs/reference/decorators.mdx` to confirm MCP server usage and tool exposure paths.
+4. **Study the closest example** under `src/mcp_agent/data/examples/` or `examples/usecases/` that matches the PR goal; note how it declares `server_names`, registers workflows with `MCPApp`, and wires tools (function vs. MCP servers).
+5. **Map the example to production placement**: plan which `src/mcp_agent/` module the code belongs in (per the project structure above) and how to reuse existing primitives instead of introducing new runtimes or transports.
+6. **Enumerate required MCP servers and configs**: verify they exist (or will be added) in `mcp_agent.config.yaml`; avoid hardcoding endpoints or tokens.
+7. **Only after the above, draft the implementation** using the existing factory helpers (`create_agent`, workflow subclasses) and decorators so the runtime surfaces stay consistent.
