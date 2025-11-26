@@ -30,6 +30,7 @@ The examples/ directory is strictly for learning patterns and verifying how to i
 - `examples/` — Reference-only demos (agents, workflows, servers, transports, providers).
 - `tests/` — Pytest suite mirroring `src/`.
 - Root tooling: `pyproject.toml`, `Makefile`, `.pre-commit-config.yaml`, `README.md`, (add `mcp_agent.config.yaml` at repo root for production).
+- Before changing placement or structure, review `docs/concepts/workflows.mdx` for how workflows and decorators fit into the runtime and `docs/concepts/mcp-primitives.mdx` for the MCP building blocks (tools, resources, prompts, roots, elicitation, transports).【F:docs/concepts/workflows.mdx†L1-L44】【F:docs/concepts/mcp-primitives.mdx†L1-L36】
 
 ---
 
@@ -43,12 +44,24 @@ The examples/ directory is strictly for learning patterns and verifying how to i
 - **ALWAYS declare MCP server access via `server_names=[]` parameter, NOT as local function-tools**. Example: `Agent(name="analyzer", server_names=["github", "code-index"], ...)`.
 - Prefer config-driven: export `SPEC: AgentSpec` and `build(context: Context | None = None) -> Agent` using `mcp_agent.workflows.factory.create_agent`.
 -  REFERENCE: See `src/mcp_agent/data/examples/workflows/workflow_deep_orchestrator/main.py` for multi-agent patterns with `server_names`.
+- Before implementing, review:
+  - `docs/concepts/agents.mdx` for core agent components, configuration examples (YAML and programmatic), and how to attach MCP servers via `server_names` while selecting provider backends.【F:docs/concepts/agents.mdx†L1-L156】
+  - `docs/reference/decorators.mdx` when exposing tools/tasks through `MCPApp`, since agents will call into these decorated surfaces for API exposure.【F:docs/reference/decorators.mdx†L1-L151】
 
 
 ### Workflows
 
 - Subclass `mcp_agent.executor.workflow.Workflow[T]`; implement `async def run(...) -> WorkflowResult[T]`.
 - Place at `src/mcp_agent/workflows/<domain>/<name>_workflow.py` (or directly under `workflows/` for general flows).
+- Before implementing, review:
+  - `docs/workflows/overview.mdx` for the pattern catalog and links to router, intent, evaluator/optimizer, orchestrator, swarm, and parallel walkthroughs.【F:docs/workflows/overview.mdx†L1-L64】
+  - `docs/workflows/router.mdx`, `intent-classifier.mdx`, `evaluator-optimizer.mdx`, `orchestrator.mdx`, `deep-orchestrator.mdx`, `parallel.mdx`, `swarm.mdx` for full pattern narratives and configuration options.【F:docs/workflows/parallel.mdx†L1-L36】
+  - `docs/reference/decorators.mdx` for `@app.workflow`, `@app.workflow_run`, and `@app.workflow_task` semantics across asyncio and Temporal engines.【F:docs/reference/decorators.mdx†L1-L151】
+
+## Entry point and API exposure
+
+Every workflow/agent must be hosted through a single `MCPApp` entrypoint and exposed via the existing API surfaces (MCP server adapters/CLI). Do not spin up bespoke FastAPI/Flask/etc. runtimes; instead register workflows with `@app.workflow` and let `server/` and `cli/` glue expose them over MCP, WebSocket, or the provided console.
+- Docs to review before exposing workflows/agents: `docs/reference/decorators.mdx` for entrypoint decorator semantics for workflows, tasks, tools, and signals under asyncio or Temporal.【F:docs/reference/decorators.mdx†L1-L151】
 
 ### Function-tools (local tools)
 
@@ -318,6 +331,7 @@ If your change touches servers, OAuth, tracing, human input, or app demos, jump 
 - `examples/usecases/reliable_conversation/workflows.py` — Example
 - `src/mcp_agent/data/examples/usecases/mcp_financial_analyzer/main.py` — Main example entrypoint
 - `src/mcp_agent/data/examples/usecases/mcp_researcher/main.py` — Main example entrypoint
+- Docs to review before selecting a use case template: `docs/workflows/overview.mdx` summarizes which workflow archetypes map to common scenarios so you can pick the closest example before coding.【F:docs/workflows/overview.mdx†L7-L64】
 
 ### Cloud (cloud-oriented examples)
 
