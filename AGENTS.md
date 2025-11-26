@@ -78,6 +78,13 @@ def register_workflow() -> Workflow[str]:
     return ExampleWorkflow()
 ```
 
+### Multi-step workflow expectations
+- Break every numbered/major step of a workflow into dedicated `@app.workflow_task` functions (or helper workflows) and invoke them from the parent `Workflow.run` method. This is required for retry/timeout control and to stream per-step progress over SSE; avoid monolithic `run` bodies.
+- Do not ship placeholder steps when the PR explicitly requires using an existing workflow or orchestrator (e.g., `workflows/deep_orchestrator` for failure-analysis/fix loops). Wire the real workflow/task instead of leaving TODOs.
+- New production workflows with multiple steps should live in their own subpackage under `src/mcp_agent/workflows/<workflow_name>/` (e.g., `tasks.py`, `helpers/`, `models.py`, `__init__.py`) rather than a single module file; agents dedicated to that workflow should live under `src/mcp_agent/agents/<agents_group_name>/`.
+- Workflows should orchestrate `Agent` instances (and their MCP servers) instead of calling tool adapters directly. Introduce/attach agent specs/builders and tests when adding new CLI/tool integrations.
+- Register every new workflow (and any agents it introduces) in `mcp_agent.config.yaml`, including required MCP servers/providers. Include a PR checklist item confirming config updates and secrets expectations.
+
 ## 3) Adding agents (port from examples, declare servers)
 Before modifying or adding an agent, read these docs to keep MCP wiring and tool exposure consistent:
 - `docs/concepts/agents.mdx` — Agent components, config-driven specs, and MCP server attachment via `server_names`; agents run with attached LLMs and discover MCP tools automatically.
@@ -175,3 +182,13 @@ To avoid diverging from the core architecture, perform this analysis in order **
 5. **Map the example to production placement**: plan which `src/mcp_agent/` module the code belongs in (per the project structure above) and how to reuse existing primitives instead of introducing new runtimes or transports.
 6. **Enumerate required MCP servers and configs**: verify they exist (or will be added) in `mcp_agent.config.yaml`; avoid hardcoding endpoints or tokens.
 7. **Only after the above, draft the implementation** using the existing factory helpers (`create_agent`, workflow subclasses) and decorators so the runtime surfaces stay consistent.
+
+## Documentation + PR hygiene
+- Each PR that adds or modifies functionality in a folder must include a `README.md` for that folder. If one exists, update it with the new behavior/usage; if the folder is new, create one alongside the implementation.
+- PR descriptions/checklists must confirm registration of new workflows/agents in `mcp_agent.config.yaml` and call out any required secrets or MCP server additions.
+
+## Never do
+- Do not pack multi-step workflow logic into a single `run` method; break steps into `@app.workflow_task` functions or helper workflows and invoke them from the parent workflow so retries/timeouts and SSE progress work correctly.
+- Do not bypass agents by calling CLI/tool adapters directly from workflows; orchestrate `Agent` instances that expose the required MCP servers/tools.
+- Do not leave placeholder steps (e.g., branch/PR/CI handling or failure-analysis loops) when the PR requires wiring existing workflows such as `workflows/deep_orchestrator` or other orchestrators—integrate the real flow.
+- Do not skip config/registration: every workflow/agent must be declared in `mcp_agent.config.yaml` with its servers/providers, and new CLI integrations must add accompanying agent specs/builders/tests plus README updates.
