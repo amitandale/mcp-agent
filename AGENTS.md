@@ -50,7 +50,12 @@ For each folder under `src/mcp_agent/`, keep production code aligned with its pu
 - Root `py.typed` — Type-checker marker; keep typings accurate.
 
 ## 2) Adding workflows (reuse patterns from examples)
-Before writing a new workflow, study the relevant patterns in `src/mcp_agent/data/examples/workflows/` and port (not rewrite) the shape that fits the PR:
+Before implementing a workflow, read the core references so you follow the documented archetypes and decorator behaviors:
+- `docs/workflows/overview.mdx` — Pattern catalog with links to router, intent classifier, evaluator/optimizer, orchestrator, deep orchestrator, parallel, and swarm walkthroughs.
+- `docs/workflows/*.mdx` — Detailed guides for each workflow type; match the PR to the closest guide before coding.
+- `docs/reference/decorators.mdx` — Behavior of `@app.workflow`, `@app.workflow_run`, and `@app.workflow_task` in asyncio and Temporal modes.
+
+After reviewing the docs, study the relevant patterns in `src/mcp_agent/data/examples/workflows/` and port (not rewrite) the shape that fits the PR:
 - **Router/Intent flows** — For routing requests to specialized agents, review `workflow_router/main.py` and `workflow_intent_classifier/main.py`.
 - **Parallel/Swarm** — For concurrent tool/agent calls, see `workflow_parallel/main.py` and `workflow_swarm/main.py`.
 - **Orchestrator/Worker** — For coordinator-driven execution with sub-agents, examine `workflow_orchestrator_worker/main.py` and `workflow_deep_orchestrator/main.py`.
@@ -74,6 +79,11 @@ def register_workflow() -> Workflow[str]:
 ```
 
 ## 3) Adding agents (port from examples, declare servers)
+Before modifying or adding an agent, read these docs to keep MCP wiring and tool exposure consistent:
+- `docs/concepts/agents.mdx` — Agent components, config-driven specs, and MCP server attachment via `server_names`.
+- `docs/concepts/mcp-primitives.mdx` — How tools/resources/prompts map to MCP primitives that agents call.
+- `docs/reference/decorators.mdx` — Tool/task/workflow decorators that agents call through MCP entrypoints.
+
 Use the agent patterns shown in `examples/usecases/**` (and the workflow examples above) as reference implementations. Always declare `server_names` and export a config-driven builder:
 - **Single-purpose agents** — e.g., browser/file/finders in `mcp_browser_agent`, `mcp_basic_slack_agent`, `streamlit_mcp_basic_agent`.
 - **Evaluator-backed agents** — e.g., marketing/financial/realtor agents that loop through evaluator/optimizer steps in `mcp_marketing_assistant_agent`, `mcp_financial_analyzer`, `mcp_realtor_agent`.
